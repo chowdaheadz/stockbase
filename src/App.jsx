@@ -104,6 +104,9 @@ export default function App() {
   const [receiveModal, setReceiveModal] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
   const [importModal, setImportModal] = useState(null);
+  const [categories, setCategories] = useState(["Headwear","Apparel","Accessories","Footwear","Uncategorized"]);
+  const [newCatInput, setNewCatInput] = useState("");
+  const [invSort, setInvSort] = useState({ col: null, dir: "asc" });
   // Replenishment state
   const [replSelected, setReplSelected] = useState({});     // { skuId: qty }
   const [replSupplier, setReplSupplier] = useState("");
@@ -161,16 +164,18 @@ useEffect(() => {
   async function loadData() {
     setLoading(true);
     try {
-      const [inv, hist, pos, ord] = await Promise.all([
+      const [inv, hist, pos, ord, cats] = await Promise.all([
         dbGet("inventory"),
         dbGet("salesHistory"),
         dbGet("purchaseOrders"),
         dbGet("orders"),
+        dbGet("categories"),
       ]);
       setInventory(inv || SAMPLE_SKUS);
       setSalesHistory(hist || SAMPLE_HISTORY);
       setPurchaseOrders(pos || []);
       setOrders(ord || []);
+      if (cats) setCategories(cats);
       if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
     } catch {
       setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
@@ -183,6 +188,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
   const saveHist   = async (d) => { try { await dbSet("salesHistory", d); } catch {} };
   const savePOs    = async (d) => { try { await dbSet("purchaseOrders", d); } catch {} };
   const saveOrders = async (d) => { try { await dbSet("orders", d); } catch {} };
+  const saveCats   = async (d) => { try { await dbSet("categories", d); } catch {} };
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -380,12 +386,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     setInventory(u); saveInv(u); setEditingId(null);
   }
   function addSKU() {
-    if (!addForm) { setAddForm({ sku:"", name:"", category:"", currentStock:"", reorderPoint:"", reorderQty:"" }); return; }
+    if (!addForm) { setAddForm({ sku:"", name:"", category: categories[0]||"Uncategorized", currentStock:"", reorderPoint:"", reorderQty:"" }); return; }
     if (!addForm.sku || !addForm.name) return;
     const u = [...inventory, { id: Date.now().toString(), sku: addForm.sku.toUpperCase(), name: addForm.name, category: addForm.category||"Uncategorized", currentStock: parseInt(addForm.currentStock)||0, reorderPoint: parseInt(addForm.reorderPoint)||0, reorderQty: parseInt(addForm.reorderQty)||0 }];
     setInventory(u); saveInv(u); setAddForm(null);
   }
   function deleteSKU(id) { const u = inventory.filter(i => i.id !== id); setInventory(u); saveInv(u); }
+  function addCategory() { const v = newCatInput.trim(); if (!v || categories.includes(v)) return; const next = [...categories, v]; setCategories(next); saveCats(next); setNewCatInput(""); }
+  function removeCategory(cat) { const next = categories.filter(c => c !== cat); setCategories(next); saveCats(next); }
 
   function initNewPO() {
     setPoForm({ poNumber: generatePONumber(purchaseOrders), supplier:"", status:"draft", createdAt: new Date().toISOString().slice(0,10), notes:"", lines:[{ skuId:"", qty:"", costPerUnit:"" }] });
@@ -666,7 +674,24 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
   const filteredInventory = inventory
     .filter(i => filterStatus === "all" || statusFor(i) === filterStatus)
-    .filter(i => !searchTerm || i.sku.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter(i => !searchTerm || i.sku.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (!invSort.col) return 0;
+      let va, vb;
+      if      (invSort.col === "SKU")          { va = a.sku;          vb = b.sku; }
+      else if (invSort.col === "Product")      { va = a.name;         vb = b.name; }
+      else if (invSort.col === "Category")     { va = a.category;     vb = b.category; }
+      else if (invSort.col === "In Stock")     { va = a.currentStock; vb = b.currentStock; }
+      else if (invSort.col === "Reorder At")   { va = a.reorderPoint; vb = b.reorderPoint; }
+      else if (invSort.col === "Order Qty")    { va = a.reorderQty;   vb = b.reorderQty; }
+      else if (invSort.col === "Velocity")     { va = velocityFor(a.sku); vb = velocityFor(b.sku); }
+      else if (invSort.col === "Avg Cost")     { va = a.avgCost||0;   vb = b.avgCost||0; }
+      else if (invSort.col === "On-Hand Value"){ va = (a.avgCost||0)*a.currentStock; vb = (b.avgCost||0)*b.currentStock; }
+      else if (invSort.col === "Status")       { const o={"out":0,"low":1,"ok":2}; va=o[statusFor(a)]??3; vb=o[statusFor(b)]??3; }
+      else return 0;
+      const cmp = typeof va === "string" ? va.localeCompare(vb) : va - vb;
+      return invSort.dir === "asc" ? cmp : -cmp;
+    });
 
   const filteredPOs = purchaseOrders
     .filter(p => poFilterStatus === "all" || p.status === poFilterStatus)
@@ -736,7 +761,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       <header style={s.header}>
         <div style={s.logo}>⬡ STOCKBASE</div>
         <nav style={{ display:"flex", gap:4 }}>
-          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"]].map(([id,label]) => (
+          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["admin","Admin"]].map(([id,label]) => (
             <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
           ))}
         </nav>
@@ -811,14 +836,27 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           {addForm && (
             <div style={{background:"#060910",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
               {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
-                <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
+                <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div>
+                {f === "category"
+                  ? <select style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))}>
+                      {categories.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  : <input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} />}
+                </div>
               ))}
               <div style={{display:"flex",gap:6,alignSelf:"flex-end"}}><button style={s.btn("primary")} onClick={addSKU}>Save</button><button style={s.btn("secondary")} onClick={()=>setAddForm(null)}>✕</button></div>
             </div>
           )}
           <div style={{overflowX:"auto"}}>
             <table style={s.table}>
-              <thead><tr>{["SKU","Product","Category","In Stock","Reorder At","Order Qty","Velocity","Avg Cost","On-Hand Value","Status","Actions"].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
+              <thead><tr>{["SKU","Product","Category","In Stock","Reorder At","Order Qty","Velocity","Avg Cost","On-Hand Value","Status","Actions"].map(h => {
+                const sortable = h !== "Actions";
+                const active = invSort.col === h;
+                return <th key={h} style={{...s.th, cursor: sortable?"pointer":"default", userSelect:"none", color: active ? C.amber : C.muted}}
+                  onClick={sortable ? ()=>setInvSort(prev => prev.col===h ? {col:h,dir:prev.dir==="asc"?"desc":"asc"} : {col:h,dir:"asc"}) : undefined}>
+                  {h}{active ? (invSort.dir==="asc" ? " ▲" : " ▼") : ""}
+                </th>;
+              })}</tr></thead>
               <tbody>
                 {filteredInventory.map(item => {
                   const st=statusFor(item), vel=velocityFor(item.sku), ed=editingId===item.id;
@@ -2044,6 +2082,40 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             </div>
           </div>
         </>}
+
+        {/* ── ADMIN ── */}
+        {tab==="admin" && <div style={{display:"flex",flexDirection:"column",gap:18}}>
+          <div style={s.card}>
+            <div style={s.secTitle}>Category Management</div>
+            <div style={{fontSize:12,color:C.dim,marginBottom:18}}>
+              Define the categories available in dropdowns across the app. Categories in use by existing SKUs are safe to keep; removing one only removes it from the dropdown, not from existing items.
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:20}}>
+              <input
+                style={{...s.inp, width:220}}
+                placeholder="New category name..."
+                value={newCatInput}
+                onChange={e=>setNewCatInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&addCategory()}
+              />
+              <button style={s.btn("primary")} onClick={addCategory}>+ Add</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {categories.map(cat => (
+                <div key={cat} style={{display:"flex",alignItems:"center",gap:6,background:"#060910",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px"}}>
+                  <span style={{fontSize:13,color:C.text}}>{cat}</span>
+                  <button
+                    style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:14,lineHeight:1,padding:"0 2px"}}
+                    onClick={()=>removeCategory(cat)}
+                    title="Remove category"
+                  >✕</button>
+                </div>
+              ))}
+              {categories.length === 0 && <div style={{fontSize:13,color:C.muted}}>No categories defined.</div>}
+            </div>
+          </div>
+        </div>}
+
       </main>
 
       {/* ── IMPORT SKU MODAL ── */}
