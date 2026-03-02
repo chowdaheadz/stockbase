@@ -815,25 +815,21 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
         {/* ── DASHBOARD ── */}
         {tab==="dashboard" && <>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:14 }}>
-            {[["Total SKUs",inventory.length,C.amber,"active products"],["Total Units",totalUnits.toLocaleString(),C.blue,"on hand"],["Open POs",openPOs,C.purple,"in progress"]].map(([l,v,a,sub]) => (
-              <div key={l} style={s.statCard(a)}><div style={s.statL}>{l}</div><div style={s.statV(a)}>{v}</div><div style={s.statS}>{sub}</div></div>
-            ))}
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:22 }}>
-            {[["Low Stock",lowCount,C.orange,"below reorder point"],["Out of Stock",outCount,C.red,"need reorder now"]].map(([l,v,a,sub]) => (
-              <div key={l} style={s.statCard(a)}><div style={s.statL}>{l}</div><div style={s.statV(a)}>{v}</div><div style={s.statS}>{sub}</div></div>
-            ))}
-            {(()=>{
-              const totalValue = inventory.reduce((s,i) => s + (i.avgCost||0) * i.currentStock, 0);
-              const costed = inventory.filter(i => i.avgCost > 0).length;
-              return <div style={s.statCard(C.green)}>
-                <div style={s.statL}>Inventory Value</div>
-                <div style={{...s.statV(C.green),fontSize:costed>0?28:34}}>{costed>0?`$${totalValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</div>
-                <div style={s.statS}>{costed>0?`${costed} SKUs with cost data`:"receive POs to track cost"}</div>
-              </div>;
-            })()}
-          </div>
+          {(()=>{
+            const totalValue = inventory.reduce((s,i) => s + (i.avgCost||0) * i.currentStock, 0);
+            const costed = inventory.filter(i => i.avgCost > 0).length;
+            const fmtVal = costed > 0 ? `$${totalValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
+            return <div style={{...s.card,padding:"9px 16px",marginBottom:14,display:"flex",gap:20,alignItems:"center",flexWrap:"wrap"}}>
+              {[[inventory.length,C.amber,"Total SKUs","active products"],[totalUnits.toLocaleString(),C.blue,"Total Units","on hand"],[openPOs,C.purple,"Open POs","in progress"],[lowCount,C.orange,"Low Stock","below reorder"],[outCount,C.red,"Out of Stock","need reorder"],[fmtVal,C.green,"Inventory Value",costed>0?`${costed} SKUs costed`:"no cost data"]].map(([v,color,label,sub])=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:color,flexShrink:0}}/>
+                  <span style={{fontSize:13,fontWeight:700,color,fontFamily:"monospace"}}>{v}</span>
+                  <span style={{fontSize:12,color:C.dim}}>{label}</span>
+                  <span style={{fontSize:11,color:C.muted}}>— {sub}</span>
+                </div>
+              ))}
+            </div>;
+          })()}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18 }}>
             <div style={s.card}>
               <div style={s.secTitle}>⚠ Stock Alerts</div>
