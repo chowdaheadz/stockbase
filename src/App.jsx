@@ -96,12 +96,14 @@ export default function App() {
   const [addForm, setAddForm] = useState(null);
   const [selectedSku, setSelectedSku] = useState(null);
   const fileRef = useRef();
+  const importRef = useRef();
   const [poView, setPoView] = useState("list");
   const [activePO, setActivePO] = useState(null);
   const [poFilterStatus, setPoFilterStatus] = useState("all");
   const [poForm, setPoForm] = useState(null);
   const [receiveModal, setReceiveModal] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
+  const [importModal, setImportModal] = useState(null);
   // Replenishment state
   const [replSelected, setReplSelected] = useState({});     // { skuId: qty }
   const [replSupplier, setReplSupplier] = useState("");
@@ -313,6 +315,64 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     setUploadFeedback(null);
   }
   // ── END ORDER CSV UPLOAD ──────────────────────────────────────────────────
+
+  // ── INVENTORY CSV IMPORT ──────────────────────────────────────────────────
+  function parseImportCSV(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const rawLines = ev.target.result.split("\n").map(l => l.trim()).filter(Boolean);
+      if (rawLines.length < 2) { setImportModal({ error: "File is empty or has no data rows." }); return; }
+
+      const cols = rawLines[0].split(",").map(c => c.trim().replace(/"/g,"").toLowerCase().replace(/[\s_]/g,""));
+      const skuIdx   = cols.findIndex(c => c === "sku");
+      const nameIdx  = cols.findIndex(c => c === "name" || c === "product" || c === "productname" || c === "item");
+      if (skuIdx < 0 || nameIdx < 0) {
+        setImportModal({ error: `CSV must have "SKU" and "Name" columns. Found: ${rawLines[0]}` });
+        return;
+      }
+      const catIdx   = cols.findIndex(c => c.includes("cat") || c === "type");
+      const stockIdx = cols.findIndex(c => c === "stock" || c === "qty" || c === "quantity" || c === "currentstock" || c === "onhand");
+      const rpIdx    = cols.findIndex(c => c === "reorderat" || c === "reorderpoint" || c === "reorderpt" || c === "minstock");
+      const rqIdx    = cols.findIndex(c => c === "orderqty" || c === "reorderqty" || c === "reorderquantity");
+
+      const rows = rawLines.slice(1).map((raw, i) => {
+        const parts = raw.split(",").map(s => s.trim().replace(/"/g,""));
+        const sku  = (parts[skuIdx] || "").toUpperCase();
+        const name = parts[nameIdx] || "";
+        if (!sku && !name) return null;
+        let error = null;
+        if (!sku) error = "Missing SKU";
+        else if (!name) error = "Missing Name";
+        const category     = catIdx   >= 0 ? parts[catIdx]   || "Uncategorized" : "Uncategorized";
+        const currentStock = stockIdx >= 0 ? parseInt(parts[stockIdx]) || 0 : 0;
+        const reorderPoint = rpIdx    >= 0 ? parseInt(parts[rpIdx])    || 0 : 0;
+        const reorderQty   = rqIdx    >= 0 ? parseInt(parts[rqIdx])    || 0 : 0;
+        const action = inventory.find(i => i.sku === sku) ? "update" : "new";
+        return { sku, name, category, currentStock, reorderPoint, reorderQty, action, error };
+      }).filter(Boolean);
+
+      setImportModal({ rows, fileName: file.name });
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function commitImport() {
+    if (!importModal?.rows) return;
+    const validRows = importModal.rows.filter(r => !r.error);
+    let newInv = [...inventory];
+    validRows.forEach(r => {
+      const idx = newInv.findIndex(i => i.sku === r.sku);
+      if (idx >= 0) {
+        newInv[idx] = { ...newInv[idx], currentStock: r.currentStock, ...(r.reorderPoint > 0 && { reorderPoint: r.reorderPoint }), ...(r.reorderQty > 0 && { reorderQty: r.reorderQty }) };
+      } else {
+        newInv.push({ id: Date.now().toString() + Math.random().toString(36).slice(2), sku: r.sku, name: r.name, category: r.category, currentStock: r.currentStock, reorderPoint: r.reorderPoint, reorderQty: r.reorderQty, avgCost: 0 });
+      }
+    });
+    setInventory(newInv); saveInv(newInv); setImportModal(null);
+  }
+  // ── END INVENTORY CSV IMPORT ──────────────────────────────────────────────
 
   function startEdit(item) { setEditingId(item.id); setEditValues({ currentStock: item.currentStock, reorderPoint: item.reorderPoint, reorderQty: item.reorderQty }); }
   function saveEdit(item) {
@@ -743,9 +803,11 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
                 <option value="all">All</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
               </select>
+              <button style={s.btn("blue")} onClick={()=>importRef.current.click()}>↑ Import CSV</button>
               <button style={s.btn("primary")} onClick={addSKU}>+ Add SKU</button>
             </div>
           </div>
+          <input ref={importRef} type="file" accept=".csv" style={{display:"none"}} onChange={parseImportCSV} />
           {addForm && (
             <div style={{background:"#060910",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
               {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
@@ -1983,6 +2045,67 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           </div>
         </>}
       </main>
+
+      {/* ── IMPORT SKU MODAL ── */}
+      {importModal && (
+        <div style={s.overlay} onClick={()=>setImportModal(null)}>
+          <div style={{...s.modal,width:640,maxWidth:"95vw",maxHeight:"80vh",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:4}}>Import SKUs from CSV</div>
+            {importModal.error ? (
+              <>
+                <div style={{fontSize:13,color:C.red,margin:"12px 0 20px"}}>{importModal.error}</div>
+                <div style={{fontSize:12,color:C.dim,marginBottom:20}}>
+                  Expected columns: <span style={{fontFamily:"monospace",color:C.text}}>SKU, Name</span> (required) and optionally <span style={{fontFamily:"monospace",color:C.text}}>Category, Stock, Reorder At, Order Qty</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"flex-end"}}><button style={s.btn("secondary")} onClick={()=>setImportModal(null)}>Close</button></div>
+              </>
+            ) : (()=>{
+              const valid = importModal.rows.filter(r=>!r.error);
+              const errors = importModal.rows.filter(r=>r.error);
+              const newCount = valid.filter(r=>r.action==="new").length;
+              const updateCount = valid.filter(r=>r.action==="update").length;
+              return <>
+                <div style={{fontSize:12,color:C.dim,marginBottom:12}}>{importModal.fileName}</div>
+                <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+                  {newCount>0 && <span style={{background:"#14532d",color:"#4ade80",borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{newCount} New</span>}
+                  {updateCount>0 && <span style={{background:"#1e3a5f",color:C.blue,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{updateCount} Update</span>}
+                  {errors.length>0 && <span style={{background:"#450a0a",color:C.red,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{errors.length} Error</span>}
+                </div>
+                <div style={{overflowY:"auto",flex:1,marginBottom:16,border:`1px solid ${C.border}`,borderRadius:8}}>
+                  <table style={{...s.table,margin:0}}>
+                    <thead><tr>{["SKU","Name","Category","Stock","Reorder At","Order Qty","Status"].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {importModal.rows.map((r,i)=>(
+                        <tr key={i} style={r.error?{background:"#1a0505"}:{}}>
+                          <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{r.sku||"—"}</td>
+                          <td style={{...s.td,fontWeight:600}}>{r.name||"—"}</td>
+                          <td style={{...s.td,fontSize:12,color:C.dim}}>{r.category}</td>
+                          <td style={{...s.td,fontFamily:"monospace"}}>{r.currentStock}</td>
+                          <td style={{...s.td,fontFamily:"monospace"}}>{r.reorderPoint||"—"}</td>
+                          <td style={{...s.td,fontFamily:"monospace"}}>{r.reorderQty||"—"}</td>
+                          <td style={s.td}>
+                            {r.error
+                              ? <span style={{color:C.red,fontSize:11}}>{r.error}</span>
+                              : r.action==="new"
+                                ? <span style={{color:"#4ade80",fontSize:11,fontWeight:700}}>New</span>
+                                : <span style={{color:C.blue,fontSize:11,fontWeight:700}}>Update</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+                  <button style={s.btn("secondary")} onClick={()=>setImportModal(null)}>Cancel</button>
+                  <button style={s.btn("primary")} onClick={commitImport} disabled={!valid.length}>
+                    Import {valid.length} SKU{valid.length!==1?"s":""}
+                  </button>
+                </div>
+              </>;
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* ── DELETE SKU MODAL ── */}
       {deleteModal && (
