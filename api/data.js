@@ -10,6 +10,17 @@ async function initDB() {
   `;
 }
 
+async function parseBody(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try { resolve(JSON.parse(body)); }
+      catch { resolve({}); }
+    });
+  });
+}
+
 export default async function handler(req, res) {
   const password = req.headers['x-app-password'];
   if (password !== process.env.APP_PASSWORD) {
@@ -32,7 +43,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { value } = req.body;
+      const body = await parseBody(req);
+      const { value } = body;
+      if (value === undefined) {
+        return res.status(400).json({ error: 'Missing value in body' });
+      }
       await sql`
         INSERT INTO app_data (key, value, updated_at)
         VALUES (${key}, ${JSON.stringify(value)}, NOW())
