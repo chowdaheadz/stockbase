@@ -84,6 +84,7 @@ export default function App() {
   const [orderLogExpanded, setOrderLogExpanded] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [addForm, setAddForm] = useState(null);
   const [selectedSku, setSelectedSku] = useState(null);
   const fileRef = useRef();
@@ -675,6 +676,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
   const filteredInventory = inventory
     .filter(i => filterStatus === "all" || statusFor(i) === filterStatus)
+    .filter(i => filterCategory === "all" || (i.category || "") === filterCategory)
     .filter(i => !searchTerm || i.sku.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       if (!invSort.col) return 0;
@@ -861,6 +863,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             <div style={s.secTitle}>INVENTORY — {filteredInventory.length} SKUs</div>
             <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
               <input placeholder="Search..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...s.inp,width:180,padding:"8px 12px"}} />
+              {(()=>{ const cats=[...new Set(inventory.map(i=>i.category||"").filter(Boolean))].sort(); return cats.length>0&&<select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} style={{...s.inp,padding:"8px 10px",fontSize:12,cursor:"pointer"}}><option value="all">All Categories</option>{cats.map(c=><option key={c} value={c}>{c}</option>)}</select>; })()}
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
                 <option value="all">All</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
               </select>
