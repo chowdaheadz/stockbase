@@ -1,14 +1,6 @@
 const { sql } = require('@vercel/postgres');
 
-// Initialize tables if they don't exist
 async function initDB() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS inventory (
-      id TEXT PRIMARY KEY,
-      data JSONB NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW()
-    )
-  `;
   await sql`
     CREATE TABLE IF NOT EXISTS app_data (
       key TEXT PRIMARY KEY,
@@ -19,7 +11,6 @@ async function initDB() {
 }
 
 module.exports = async function handler(req, res) {
-  // Simple shared password check
   const password = req.headers['x-app-password'];
   if (password !== process.env.APP_PASSWORD) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -52,3 +43,9 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('DB error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
