@@ -34,18 +34,7 @@ function statusFor(item) {
   return "ok";
 }
 
-const STATUS_STYLES = {
-  out: { label: "OUT OF STOCK", bg: "#450a0a", color: "#f87171", dot: "#ef4444" },
-  low: { label: "LOW STOCK", bg: "#451a03", color: "#fb923c", dot: "#f97316" },
-  ok:  { label: "OK",          bg: "#052e16", color: "#4ade80", dot: "#22c55e" },
-};
-
-const PO_STATUS = {
-  draft:    { label: "DRAFT",            bg: "#1e2d45", color: "#94a3b8" },
-  sent:     { label: "SENT TO SUPPLIER", bg: "#1e3a5f", color: "#60a5fa" },
-  partial:  { label: "PARTIAL",          bg: "#451a03", color: "#fb923c" },
-  received: { label: "RECEIVED",         bg: "#052e16", color: "#4ade80" },
-};
+// STATUS_STYLES and PO_STATUS are now defined inside App() so they can react to the theme.
 function parseOrderDate(raw) {
   if (!raw) return null;
   const clean = raw.trim();
@@ -77,6 +66,8 @@ function generatePONumber(existing) {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem("sb-theme") || "dark");
+  useEffect(() => { localStorage.setItem("sb-theme", theme); }, [theme]);
   const [tab, setTab] = useState("dashboard");
   const [inventory, setInventory] = useState([]);
   const [salesHistory, setSalesHistory] = useState([]);
@@ -698,12 +689,50 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
 
   // ── STYLES ────────────────────────────────────────────────────────────────
-  const C = { bg: "#0a0d14", surface: "#0f1420", border: "#1e2d45", muted: "#475569", dim: "#64748b", text: "#e2e8f0", amber: "#f59e0b", blue: "#60a5fa", green: "#4ade80", orange: "#f97316", red: "#ef4444", purple: "#a78bfa" };
+  const C = theme === 'dark' ? {
+    bg: '#0a0d14',       surface: '#0f1420',     border: '#1e2d45',
+    muted: '#475569',    dim: '#64748b',          text: '#e2e8f0',
+    amber: '#f59e0b',    blue: '#60a5fa',         green: '#4ade80',
+    orange: '#f97316',   red: '#ef4444',          purple: '#a78bfa',
+    surfaceDeep: '#060910', tdBorder: '#0f1e30',  btnText: '#94a3b8',
+    navActive: '#f59e0b18', dangerBg: '#450a0a',  dangerBorder: '#7f1d1d',
+    blueBg: '#1e3a5f',   successBg: '#14532d',   errorRowBg: '#1a0505',
+    dangerBgSubtle: '#450a0a40', warnBgSubtle: '#451a0340', dangerBorderSubtle: '#7f1d1d40',
+  } : {
+    bg: '#f8fafc',       surface: '#ffffff',      border: '#e2e8f0',
+    muted: '#94a3b8',    dim: '#64748b',          text: '#0f172a',
+    amber: '#d97706',    blue: '#2563eb',         green: '#16a34a',
+    orange: '#ea580c',   red: '#dc2626',          purple: '#7c3aed',
+    surfaceDeep: '#f1f5f9', tdBorder: '#e8edf2',  btnText: '#64748b',
+    navActive: '#d9770618', dangerBg: '#fef2f2',  dangerBorder: '#fca5a5',
+    blueBg: '#eff6ff',   successBg: '#dcfce7',   errorRowBg: '#fef2f2',
+    dangerBgSubtle: '#fef2f2', warnBgSubtle: '#fff7ed', dangerBorderSubtle: '#fca5a5',
+  };
+  const STATUS_STYLES = theme === 'dark' ? {
+    out: { label: 'OUT OF STOCK', bg: '#450a0a', color: '#f87171', dot: '#ef4444' },
+    low: { label: 'LOW STOCK',    bg: '#451a03', color: '#fb923c', dot: '#f97316' },
+    ok:  { label: 'OK',           bg: '#052e16', color: '#4ade80', dot: '#22c55e' },
+  } : {
+    out: { label: 'OUT OF STOCK', bg: '#fef2f2', color: '#dc2626', dot: '#dc2626' },
+    low: { label: 'LOW STOCK',    bg: '#fff7ed', color: '#ea580c', dot: '#ea580c' },
+    ok:  { label: 'OK',           bg: '#f0fdf4', color: '#16a34a', dot: '#16a34a' },
+  };
+  const PO_STATUS = theme === 'dark' ? {
+    draft:    { label: 'DRAFT',            bg: '#1e2d45', color: '#94a3b8' },
+    sent:     { label: 'SENT TO SUPPLIER', bg: '#1e3a5f', color: '#60a5fa' },
+    partial:  { label: 'PARTIAL',          bg: '#451a03', color: '#fb923c' },
+    received: { label: 'RECEIVED',         bg: '#052e16', color: '#4ade80' },
+  } : {
+    draft:    { label: 'DRAFT',            bg: '#f1f5f9', color: '#64748b' },
+    sent:     { label: 'SENT TO SUPPLIER', bg: '#eff6ff', color: '#2563eb' },
+    partial:  { label: 'PARTIAL',          bg: '#fff7ed', color: '#ea580c' },
+    received: { label: 'RECEIVED',         bg: '#f0fdf4', color: '#16a34a' },
+  };
   const s = {
     app: { background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text },
     header: { background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 32px", display: "flex", alignItems: "center", gap: 24, height: 64, position: "sticky", top: 0, zIndex: 50 },
     logo: { fontFamily: "'Space Mono',monospace", fontSize: 17, fontWeight: 700, color: C.amber, letterSpacing: 1, whiteSpace: "nowrap" },
-    navBtn: (a) => ({ padding: "6px 14px", border: "none", background: a ? "#f59e0b18" : "transparent", color: a ? C.amber : "#94a3b8", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s" }),
+    navBtn: (a) => ({ padding: "6px 14px", border: "none", background: a ? C.navActive : "transparent", color: a ? C.amber : C.btnText, borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s" }),
     main: { padding: "28px 32px", maxWidth: 1400, margin: "0 auto" },
     card: { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px" },
     statCard: (a) => ({ background: C.surface, border: `1px solid ${a}30`, borderRadius: 12, padding: "20px 24px", borderLeft: `3px solid ${a}` }),
@@ -713,13 +742,13 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     secTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.dim, textTransform: "uppercase", marginBottom: 14 },
     table: { width: "100%", borderCollapse: "collapse" },
     th: { padding: "9px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` },
-    td: { padding: "11px 12px", fontSize: 13, borderBottom: `1px solid #0f1e30`, verticalAlign: "middle" },
+    td: { padding: "11px 12px", fontSize: 13, borderBottom: `1px solid ${C.tdBorder}`, verticalAlign: "middle" },
     inp: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "7px 10px", fontSize: 13, fontFamily: "monospace" },
     inpFull: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
     sel: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
-    btn: (v) => ({ padding: v==="primary"?"10px 18px":"6px 13px", background: v==="primary"?C.amber:v==="danger"?"#450a0a":v==="blue"?"#1e3a5f":C.border, color: v==="primary"?C.bg:v==="danger"?C.red:v==="blue"?C.blue:"#94a3b8", border:"none", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5, transition:"all 0.15s", whiteSpace:"nowrap" }),
+    btn: (v) => ({ padding: v==="primary"?"10px 18px":"6px 13px", background: v==="primary"?C.amber:v==="danger"?C.dangerBg:v==="blue"?C.blueBg:C.border, color: v==="primary"?C.bg:v==="danger"?C.red:v==="blue"?C.blue:C.btnText, border:"none", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5, transition:"all 0.15s", whiteSpace:"nowrap" }),
     badge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 8px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:STATUS_STYLES[st].bg, color:STATUS_STYLES[st].color }),
-    poBadge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:PO_STATUS[st]?.bg||C.border, color:PO_STATUS[st]?.color||"#94a3b8" }),
+    poBadge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:PO_STATUS[st]?.bg||C.border, color:PO_STATUS[st]?.color||C.btnText }),
     alertRow: (st) => ({ background:STATUS_STYLES[st].bg+"44", border:`1px solid ${STATUS_STYLES[st].dot}30`, borderRadius:8, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }),
     mono: { fontFamily: "'Space Mono',monospace" },
     lbl: { fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
@@ -729,22 +758,22 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
   };
 // Password screen
   if (!authed) return (
-    <div style={{background:"#0a0d14",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
-      <div style={{background:"#0f1420",border:"1px solid #1e2d45",borderRadius:16,padding:"48px 40px",width:360,textAlign:"center"}}>
-        <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#f59e0b",marginBottom:8}}>⬡ STOCKBASE</div>
-        <div style={{fontSize:13,color:"#64748b",marginBottom:32}}>Enter your team password to continue</div>
+    <div style={{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,padding:"48px 40px",width:360,textAlign:"center"}}>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:C.amber,marginBottom:8}}>⬡ STOCKBASE</div>
+        <div style={{fontSize:13,color:C.dim,marginBottom:32}}>Enter your team password to continue</div>
         <input
           type="password"
           placeholder="Password"
           value={passwordInput}
           onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
           onKeyDown={async e => { if (e.key === "Enter") { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } } }}
-          style={{width:"100%",boxSizing:"border-box",background:"#0a0d14",border:`1px solid ${passwordError?"#ef4444":"#1e2d45"}`,color:"#e2e8f0",borderRadius:8,padding:"11px 14px",fontSize:14,fontFamily:"inherit",marginBottom:12,outline:"none"}}
+          style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${passwordError?C.red:C.border}`,color:C.text,borderRadius:8,padding:"11px 14px",fontSize:14,fontFamily:"inherit",marginBottom:12,outline:"none"}}
           autoFocus
         />
-        {passwordError && <div style={{color:"#ef4444",fontSize:12,marginBottom:12}}>Incorrect password — try again</div>}
+        {passwordError && <div style={{color:C.red,fontSize:12,marginBottom:12}}>Incorrect password — try again</div>}
         <button
-          style={{width:"100%",padding:"11px",background:"#f59e0b",color:"#0a0d14",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          style={{width:"100%",padding:"11px",background:C.amber,color:C.bg,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
           onClick={async () => { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } }}
         >
           Unlock
@@ -766,8 +795,9 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           ))}
         </nav>
         <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {alerts.length > 0 && <div style={{ background:"#450a0a", border:"1px solid #7f1d1d", borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
+          {alerts.length > 0 && <div style={{ background:C.dangerBg, border:`1px solid ${C.dangerBorder}`, borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
           <button style={s.btn("secondary")} onClick={exportCSV}>↓ Export</button>
+          <button style={{...s.btn("secondary"), fontSize:14}} onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title="Toggle light/dark mode">{theme === "dark" ? "☀" : "☾"}</button>
         </div>
       </header>
 
@@ -787,9 +817,9 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             {(()=>{
               const totalValue = inventory.reduce((s,i) => s + (i.avgCost||0) * i.currentStock, 0);
               const costed = inventory.filter(i => i.avgCost > 0).length;
-              return <div style={s.statCard("#34d399")}>
+              return <div style={s.statCard(C.green)}>
                 <div style={s.statL}>Inventory Value</div>
-                <div style={{...s.statV("#34d399"),fontSize:costed>0?28:34}}>{costed>0?`$${totalValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</div>
+                <div style={{...s.statV(C.green),fontSize:costed>0?28:34}}>{costed>0?`$${totalValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</div>
                 <div style={s.statS}>{costed>0?`${costed} SKUs with cost data`:"receive POs to track cost"}</div>
               </div>;
             })()}
@@ -834,7 +864,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           </div>
           <input ref={importRef} type="file" accept=".csv" style={{display:"none"}} onChange={parseImportCSV} />
           {addForm && (
-            <div style={{background:"#060910",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
+            <div style={{background:C.surfaceDeep,border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
               {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
                 <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div>
                 {f === "category"
@@ -863,14 +893,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   const avgCost = item.avgCost || 0;
                   const onHandValue = avgCost * item.currentStock;
                   return <tr key={item.id}>
-                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
+                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{item.sku}</td>
                     <td style={{...s.td,fontWeight:600}}>{item.name}</td>
                     <td style={{...s.td,fontSize:12,color:C.dim}}>{item.category}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.currentStock} onChange={e=>setEditValues(v=>({...v,currentStock:e.target.value}))} />:<span style={{fontFamily:"monospace",fontSize:15,fontWeight:700,color:st==="out"?C.red:st==="low"?C.orange:C.text}}>{item.currentStock}</span>}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.reorderPoint} onChange={e=>setEditValues(v=>({...v,reorderPoint:e.target.value}))} />:<span style={s.mono}>{item.reorderPoint}</span>}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.reorderQty} onChange={e=>setEditValues(v=>({...v,reorderQty:e.target.value}))} />:<span style={s.mono}>{item.reorderQty}</span>}</td>
                     <td style={{...s.td,fontFamily:"monospace",color:C.amber}}>{vel>0?`${vel}/wk`:"—"}</td>
-                    <td style={{...s.td,fontFamily:"monospace",color:avgCost>0?"#34d399":C.muted}}>{avgCost>0?`$${avgCost.toFixed(2)}`:"—"}</td>
+                    <td style={{...s.td,fontFamily:"monospace",color:avgCost>0?C.green:C.muted}}>{avgCost>0?`$${avgCost.toFixed(2)}`:"—"}</td>
                     <td style={{...s.td,fontFamily:"monospace",color:onHandValue>0?C.text:C.muted}}>{onHandValue>0?`$${onHandValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</td>
                     <td style={s.td}><span style={s.badge(st)}><span style={{width:5,height:5,borderRadius:"50%",background:STATUS_STYLES[st].dot,display:"inline-block"}} />{STATUS_STYLES[st].label}</span></td>
                     <td style={s.td}><div style={{display:"flex",gap:4}}>{ed?<><button style={s.btn("primary")} onClick={()=>saveEdit(item)}>✓</button><button style={s.btn("secondary")} onClick={()=>setEditingId(null)}>✕</button></>:<><button style={s.btn("secondary")} onClick={()=>startEdit(item)}>Edit</button><button style={s.btn("danger")} onClick={()=>setDeleteModal(item)}>Del</button></>}</div></td>
@@ -890,10 +920,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           const lowCount2 = replRows.filter(r=>r.urg==="low").length;
           const watchCount = replRows.filter(r=>r.urg==="watch").length;
 
-          const URG = {
+          const URG = theme === 'dark' ? {
             critical: { label:"CRITICAL",  color:"#f87171", bg:"#450a0a", border:"#7f1d1d", dot:"#ef4444", desc:"Out of stock — no units available" },
             low:      { label:"LOW STOCK", color:"#fb923c", bg:"#451a03", border:"#92400e", dot:"#f97316", desc:"Below reorder point" },
             watch:    { label:"WATCH",     color:"#facc15", bg:"#422006", border:"#854d0e", dot:"#eab308", desc:"Fewer than 4 weeks of runway at current velocity" },
+          } : {
+            critical: { label:"CRITICAL",  color:"#dc2626", bg:"#fef2f2", border:"#fca5a5", dot:"#dc2626", desc:"Out of stock — no units available" },
+            low:      { label:"LOW STOCK", color:"#ea580c", bg:"#fff7ed", border:"#fdba74", dot:"#ea580c", desc:"Below reorder point" },
+            watch:    { label:"WATCH",     color:"#ca8a04", bg:"#fefce8", border:"#fde047", dot:"#ca8a04", desc:"Fewer than 4 weeks of runway at current velocity" },
           };
 
           return <>
@@ -987,7 +1021,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                                   {urg.label}
                                 </span>
                               </td>
-                              <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
+                              <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{item.sku}</td>
                               <td style={{...s.td,fontWeight:600,maxWidth:180}}>{item.name}</td>
                               <td style={{...s.td,fontSize:12,color:C.dim}}>{item.category}</td>
                               {/* Stock vs reorder */}
@@ -1004,7 +1038,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                                 <span style={{fontFamily:"monospace",fontWeight:700,color:wksColor}}>{wksDisplay}</span>
                                 <span style={{fontSize:10,color:C.muted,marginLeft:3}}>wks</span>
                               </td>
-                              <td style={{...s.td,fontFamily:"monospace",color:item.avgCost>0?"#34d399":C.muted,fontSize:12}}>{item.avgCost>0?`$${item.avgCost.toFixed(2)}`:"—"}</td>
+                              <td style={{...s.td,fontFamily:"monospace",color:item.avgCost>0?C.green:C.muted,fontSize:12}}>{item.avgCost>0?`$${item.avgCost.toFixed(2)}`:"—"}</td>
                               {/* Open POs column */}
                               <td style={s.td}>
                                 {item.openPOsForSku.length>0
@@ -1098,7 +1132,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           const rows = getReplRows().filter(r=>replSelected[r.id]!==undefined);
                           const totalQty = rows.reduce((s,r)=>s+(parseInt(replSelected[r.id])||0),0);
                           const totalCost = rows.reduce((s,r)=>s+(parseInt(replSelected[r.id])||0)*(r.avgCost||0),0);
-                          return <div style={{background:"#060910",borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+                          return <div style={{background:C.surfaceDeep,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
                             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                               <span style={{fontSize:11,color:C.dim}}>SKUs selected</span>
                               <span style={{fontFamily:"monospace",fontWeight:700,color:C.purple}}>{selectedCount}</span>
@@ -1109,7 +1143,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                             </div>
                             {totalCost>0&&<div style={{display:"flex",justifyContent:"space-between",borderTop:`1px solid ${C.border}`,paddingTop:6,marginTop:2}}>
                               <span style={{fontSize:11,color:C.dim}}>Est. PO value</span>
-                              <span style={{fontFamily:"monospace",fontWeight:800,color:"#34d399"}}>${totalCost.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                              <span style={{fontFamily:"monospace",fontWeight:800,color:C.green}}>${totalCost.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                             </div>}
                           </div>;
                         })()}
@@ -1128,7 +1162,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   }
 
                   {replCreatedMsg && (
-                    <div style={{marginTop:12,padding:"10px 12px",background:"#052e16",border:"1px solid #166534",borderRadius:8,fontSize:12,color:"#4ade80",fontWeight:600}}>
+                    <div style={{marginTop:12,padding:"10px 12px",background:STATUS_STYLES.ok.bg,border:`1px solid ${STATUS_STYLES.ok.dot}`,borderRadius:8,fontSize:12,color:C.green,fontWeight:600}}>
                       ✓ {replCreatedMsg} created —{" "}
                       <span style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setTab("po");setPoView("list");setReplCreatedMsg(null);}}>
                         view in Purchase Orders →
@@ -1252,7 +1286,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                       <div key={k}><div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{k}</div><div style={{fontSize:14,fontWeight:700,fontFamily:["SKU Lines","Grand Total"].includes(k)?"monospace":"inherit",color:k==="Grand Total"?C.amber:C.text}}>{v}</div></div>
                     ))}
                   </div>
-                  {po.notes&&<div style={{marginTop:14,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:13,color:"#94a3b8",borderLeft:`2px solid ${C.border}`}}>{po.notes}</div>}
+                  {po.notes&&<div style={{marginTop:14,padding:"10px 14px",background:C.surfaceDeep,borderRadius:8,fontSize:13,color:C.btnText,borderLeft:`2px solid ${C.border}`}}>{po.notes}</div>}
                 </div>
                 <div style={s.card}>
                   <div style={s.secTitle}>Receiving Progress</div>
@@ -1264,7 +1298,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   </div>
                   {po.status==="received"
                     ?<div style={{color:C.green,fontSize:13,fontWeight:600}}>✓ Fully received — stock updated</div>
-                    :<div style={{color:"#94a3b8",fontSize:13}}>Use "Receive" on line items below to log incoming stock. Inventory updates automatically.</div>}
+                    :<div style={{color:C.btnText,fontSize:13}}>Use "Receive" on line items below to log incoming stock. Inventory updates automatically.</div>}
                 </div>
               </div>
               <div style={s.card}>
@@ -1275,7 +1309,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     {po.lines.map((line,idx)=>{
                       const rem=line.qty-line.received, done=rem===0;
                       return <tr key={idx}>
-                        <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{line.sku}</td>
+                        <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{line.sku}</td>
                         <td style={{...s.td,fontWeight:600}}>{line.name}</td>
                         <td style={{...s.td,fontFamily:"monospace"}}>{line.qty}</td>
                         <td style={{...s.td,fontFamily:"monospace"}}>${line.costPerUnit.toFixed(2)}</td>
@@ -1358,7 +1392,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <div style={s.card}>
                 <div style={s.secTitle}>Forecast Summary</div>
                 <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
-                  {[["Method",methodLabels[fcMethod],C.amber],["Window",fcWindow==="yoy"?"Year over Year":"All History",C.blue],["Horizon",`${fcWeeks} weeks`,C.text],["Total Demand",`${totalForecastUnits.toLocaleString()} units`,"#34d399"],["SKUs to Order",`${skusNeedingOrder} of ${fcRows.length}`,C.orange],["Total to Order",`${totalSuggestedOrder.toLocaleString()} units`,C.purple]].map(([l,v,c])=>(
+                  {[["Method",methodLabels[fcMethod],C.amber],["Window",fcWindow==="yoy"?"Year over Year":"All History",C.blue],["Horizon",`${fcWeeks} weeks`,C.text],["Total Demand",`${totalForecastUnits.toLocaleString()} units`,C.green],["SKUs to Order",`${skusNeedingOrder} of ${fcRows.length}`,C.orange],["Total to Order",`${totalSuggestedOrder.toLocaleString()} units`,C.purple]].map(([l,v,c])=>(
                     <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
                       <span style={{fontSize:11,color:C.dim}}>{l}</span>
                       <span style={{fontSize:12,fontWeight:700,color:c,fontFamily:"monospace"}}>{v}</span>
@@ -1377,7 +1411,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 >
                   📋 Create PO from Forecast ({skusNeedingOrder} SKUs)
                 </button>
-                {fcCreatedMsg&&<div style={{marginTop:10,padding:"10px 12px",background:"#052e16",border:"1px solid #166534",borderRadius:8,fontSize:12,color:"#4ade80",fontWeight:600}}>
+                {fcCreatedMsg&&<div style={{marginTop:10,padding:"10px 12px",background:STATUS_STYLES.ok.bg,border:`1px solid ${STATUS_STYLES.ok.dot}`,borderRadius:8,fontSize:12,color:C.green,fontWeight:600}}>
                   ✓ {fcCreatedMsg} created as Draft — <span style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setTab("po");setPoView("list");setFcCreatedMsg(null);}}>view in Purchase Orders →</span>
                 </div>}
               </div>
@@ -1401,21 +1435,23 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                       const weeksOfStock = item.weeklyRate>0 ? (item.currentStock/item.weeklyRate).toFixed(1) : "∞";
                       const covered = item.currentStock >= item.forecastUnits;
                       const confidence = item.seriesLength >= 8 ? "high" : item.seriesLength >= 4 ? "medium" : "low";
-                      const confStyle = { high:{color:"#4ade80",bg:"#052e16"}, medium:{color:C.amber,bg:"#451a0320"}, low:{color:C.red,bg:"#450a0a"} }[confidence];
+                      const confStyle = theme==='dark'
+                        ? { high:{color:"#4ade80",bg:"#052e16"}, medium:{color:C.amber,bg:"#451a0320"}, low:{color:C.red,bg:C.dangerBg} }[confidence]
+                        : { high:{color:C.green,bg:"#f0fdf4"}, medium:{color:C.amber,bg:"#fffbeb"}, low:{color:C.red,bg:C.dangerBg} }[confidence];
                       return <tr key={item.id}>
-                        <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
+                        <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{item.sku}</td>
                         <td style={{...s.td,fontWeight:600,maxWidth:200}}>{item.name}</td>
                         <td style={{...s.td,fontFamily:"monospace",fontWeight:700,color:statusFor(item)==="out"?C.red:statusFor(item)==="low"?C.orange:C.text}}>{item.currentStock}</td>
                         <td style={{...s.td,fontFamily:"monospace",color:C.amber}}>
                           <div>{item.weeklyRate}/wk</div>
-                          {item.trend!==0&&<div style={{fontSize:10,color:item.trend>0?"#4ade80":C.red}}>{item.trend>0?"↑":"↓"} {Math.abs(item.trend)}/wk trend</div>}
+                          {item.trend!==0&&<div style={{fontSize:10,color:item.trend>0?C.green:C.red}}>{item.trend>0?"↑":"↓"} {Math.abs(item.trend)}/wk trend</div>}
                           <div style={{fontSize:10,color:C.muted,marginTop:2}}>{item.note}</div>
                         </td>
                         <td style={{...s.td,fontFamily:"monospace",fontWeight:700,fontSize:15}}>{item.forecastUnits}</td>
                         <td style={s.td}>
                           {covered
-                            ?<span style={{fontSize:11,fontWeight:700,color:"#4ade80",background:"#052e16",padding:"3px 8px",borderRadius:4}}>✓ {weeksOfStock} wks</span>
-                            :<span style={{fontSize:11,fontWeight:700,color:C.red,background:"#450a0a",padding:"3px 8px",borderRadius:4}}>⚠ Short {item.forecastUnits-item.currentStock} units</span>}
+                            ?<span style={{fontSize:11,fontWeight:700,color:C.green,background:STATUS_STYLES.ok.bg,padding:"3px 8px",borderRadius:4}}>✓ {weeksOfStock} wks</span>
+                            :<span style={{fontSize:11,fontWeight:700,color:C.red,background:C.dangerBg,padding:"3px 8px",borderRadius:4}}>⚠ Short {item.forecastUnits-item.currentStock} units</span>}
                         </td>
                         <td style={{...s.td,fontFamily:"monospace",fontWeight:700,color:item.suggestedOrder>0?C.orange:C.muted}}>{item.suggestedOrder>0?item.suggestedOrder:"—"}</td>
                         <td style={{...s.td,fontFamily:"monospace",fontWeight:800,fontSize:15,color:item.roundedOrder>0?C.purple:C.muted}}>
@@ -1431,10 +1467,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   </tbody>
                 </table>
               </div>
-              <div style={{marginTop:12,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:11,color:C.dim,lineHeight:1.7,borderLeft:`2px solid ${C.border}`}}>
-                <strong style={{color:"#94a3b8"}}>Confidence</strong> is based on data volume: <strong style={{color:"#4ade80"}}>High</strong> = 8+ weeks · <strong style={{color:C.amber}}>Medium</strong> = 4–7 weeks · <strong style={{color:C.red}}>Low</strong> = fewer than 4 weeks. Upload more weekly sales CSVs to improve accuracy.
-                {fcMethod==="trend"&&<span> · <strong style={{color:"#94a3b8"}}>Trend-Adjusted</strong> uses linear regression — the slope (↑/↓ per week) is shown under each SKU's rate.</span>}
-                {fcMethod==="seasonality"&&<span> · <strong style={{color:"#94a3b8"}}>Seasonality</strong> multipliers apply to the months covered by your forecast window. Adjust multipliers in the panel to the left.</span>}
+              <div style={{marginTop:12,padding:"10px 14px",background:C.surfaceDeep,borderRadius:8,fontSize:11,color:C.dim,lineHeight:1.7,borderLeft:`2px solid ${C.border}`}}>
+                <strong style={{color:C.btnText}}>Confidence</strong> is based on data volume: <strong style={{color:C.green}}>High</strong> = 8+ weeks · <strong style={{color:C.amber}}>Medium</strong> = 4–7 weeks · <strong style={{color:C.red}}>Low</strong> = fewer than 4 weeks. Upload more weekly sales CSVs to improve accuracy.
+                {fcMethod==="trend"&&<span> · <strong style={{color:C.btnText}}>Trend-Adjusted</strong> uses linear regression — the slope (↑/↓ per week) is shown under each SKU's rate.</span>}
+                {fcMethod==="seasonality"&&<span> · <strong style={{color:C.btnText}}>Seasonality</strong> multipliers apply to the months covered by your forecast window. Adjust multipliers in the panel to the left.</span>}
               </div>
             </div>
           </>;
@@ -1499,9 +1535,9 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   padding:"7px 18px", border:"none", borderRadius:7, cursor:"pointer",
                   fontFamily:"inherit", fontSize:13, fontWeight:600,
                   background: uploadSubTab===id ? C.amber : "transparent",
-                  color: uploadSubTab===id ? C.bg : "#94a3b8",
+                  color: uploadSubTab===id ? C.bg : C.btnText,
                   transition:"all 0.15s",
-                }}>{label}{id==="log"&&allOrderIds.length>0&&<span style={{marginLeft:6,fontSize:10,background:uploadSubTab==="log"?C.bg+"40":"#1e2d45",color:uploadSubTab==="log"?C.bg:C.dim,padding:"1px 6px",borderRadius:99}}>{allOrderIds.length}</span>}</button>
+                }}>{label}{id==="log"&&allOrderIds.length>0&&<span style={{marginLeft:6,fontSize:10,background:uploadSubTab==="log"?C.bg+"40":C.border,color:uploadSubTab==="log"?C.bg:C.dim,padding:"1px 6px",borderRadius:99}}>{allOrderIds.length}</span>}</button>
               ))}
             </div>
 
@@ -1546,12 +1582,12 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     }}
                   >
                     <div style={{fontSize:48,marginBottom:14}}>📂</div>
-                    <div style={{fontSize:16,fontWeight:700,color:"#94a3b8",marginBottom:8}}>Drop CSV here or click to browse</div>
+                    <div style={{fontSize:16,fontWeight:700,color:C.btnText,marginBottom:8}}>Drop CSV here or click to browse</div>
                     <div style={{fontSize:12,color:C.muted,lineHeight:1.7}}>Your data is validated and previewed<br/>before anything touches inventory</div>
                     <input ref={fileRef} type="file" accept=".csv" style={{display:"none"}} onChange={parseOrderCSV} />
                   </div>
                   {uploadFeedback && (
-                    <div style={{marginTop:14,padding:"13px 16px",borderRadius:8,background:"#450a0a",border:"1px solid #7f1d1d",color:C.red,fontSize:13,fontWeight:600,display:"flex",alignItems:"flex-start",gap:10}}>
+                    <div style={{marginTop:14,padding:"13px 16px",borderRadius:8,background:C.dangerBg,border:`1px solid ${C.dangerBorder}`,color:C.red,fontSize:13,fontWeight:600,display:"flex",alignItems:"flex-start",gap:10}}>
                       <span>✕</span><span>{uploadFeedback.msg}</span>
                     </div>
                   )}
@@ -1560,7 +1596,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={s.card}>
                     <div style={s.secTitle}>Required Format</div>
-                    <div style={{background:"#060910",borderRadius:8,padding:16,fontFamily:"monospace",fontSize:12,color:"#94a3b8",lineHeight:2,marginBottom:14}}>
+                    <div style={{background:C.surfaceDeep,borderRadius:8,padding:16,fontFamily:"monospace",fontSize:12,color:C.btnText,lineHeight:2,marginBottom:14}}>
                       <div style={{color:C.dim,marginBottom:2}}># Headers (column order flexible)</div>
                <div style={{color:C.amber}}>Order#,SKU,Quantity,OrderDate</div>
                     <div style={{color:C.green}}>ORD-1001,CHZ-001,2,2024/15/03</div>
@@ -1607,19 +1643,19 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                       <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",fontFamily:"monospace",wordBreak:"break-all",lineHeight:1.3,marginBottom:4}}>{fileName.length > 22 ? fileName.slice(0,22)+"…" : fileName}</div>
                       <div style={s.statS}>{validLines.length + errorLines.length + dupLines.length} rows parsed</div>
                     </div>
-                    <div style={s.statCard("#34d399")}>
+                    <div style={s.statCard(C.green)}>
                       <div style={s.statL}>Ready to Import</div>
-                      <div style={s.statV("#34d399")}>{orderIds.length}</div>
+                      <div style={s.statV(C.green)}>{orderIds.length}</div>
                       <div style={s.statS}>{validLines.length} line items · {previewUnits} units</div>
                     </div>
-                    <div style={s.statCard(errorLines.length > 0 ? C.red : "#34d399")}>
+                    <div style={s.statCard(errorLines.length > 0 ? C.red : C.green)}>
                       <div style={s.statL}>Errors</div>
-                      <div style={s.statV(errorLines.length > 0 ? C.red : "#34d399")}>{errorLines.length}</div>
+                      <div style={s.statV(errorLines.length > 0 ? C.red : C.green)}>{errorLines.length}</div>
                       <div style={s.statS}>{errorLines.length > 0 ? "Will be skipped" : "No issues"}</div>
                     </div>
-                    <div style={s.statCard(dupLines.length > 0 ? C.orange : "#34d399")}>
+                    <div style={s.statCard(dupLines.length > 0 ? C.orange : C.green)}>
                       <div style={s.statL}>Duplicates</div>
-                      <div style={s.statV(dupLines.length > 0 ? C.orange : "#34d399")}>{dupLines.length}</div>
+                      <div style={s.statV(dupLines.length > 0 ? C.orange : C.green)}>{dupLines.length}</div>
                       <div style={s.statS}>{dupLines.length > 0 ? "Already imported" : "No duplicates"}</div>
                     </div>
                   </div>
@@ -1634,20 +1670,20 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           const total = oLines.reduce((s,l) => s+l.qty, 0);
                           const exp = orderLogExpanded === ordId;
                           return <div key={ordId} style={{borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden"}}>
-                            <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer",background:exp?"#1e2d4555":C.bg,transition:"background 0.15s"}}>
+                            <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer",background:exp?C.border:C.bg,transition:"background 0.15s"}}>
                               <span style={{fontFamily:"monospace",fontWeight:700,color:C.amber,minWidth:90}}>{ordId}</span>
                               <span style={{fontSize:12,color:C.dim,flex:1}}>{oLines.length} item{oLines.length!==1?"s":""}</span>
                               <span style={{fontFamily:"monospace",fontWeight:700}}>{total} units</span>
                               <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{exp?"▲":"▼"}</span>
                             </div>
-                            {exp && <div style={{background:"#060910"}}>
+                            {exp && <div style={{background:C.surfaceDeep}}>
                               <table style={s.table}>
                                 <thead><tr>
                                   {["SKU","Product","Qty"].map(h => <th key={h} style={{...s.th,padding:"7px 14px"}}>{h}</th>)}
                                 </tr></thead>
                                 <tbody>{oLines.map((l,i) => (
                                   <tr key={i}>
-                                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8",padding:"7px 14px"}}>{l.sku}</td>
+                                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText,padding:"7px 14px"}}>{l.sku}</td>
                                     <td style={{...s.td,fontWeight:500,padding:"7px 14px",color:C.dim}}>{l.skuName}</td>
                                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700,padding:"7px 14px"}}>{l.qty}</td>
                                   </tr>
@@ -1665,10 +1701,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                         <div style={{...s.secTitle,color:C.red}}>⚠ Errors — will be skipped ({errorLines.length})</div>
                         <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
                           {errorLines.map((e,i) => (
-                            <div key={i} style={{padding:"8px 12px",borderRadius:6,background:"#450a0a40",border:"1px solid #7f1d1d40",fontSize:12}}>
+                            <div key={i} style={{padding:"8px 12px",borderRadius:6,background:C.dangerBgSubtle,border:`1px solid ${C.dangerBorderSubtle}`,fontSize:12}}>
                               <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                                 <span style={{fontFamily:"monospace",color:C.muted,fontSize:10}}>Row {e.row}</span>
-                                {e.skuRaw && <span style={{fontFamily:"monospace",color:"#94a3b8",fontSize:10}}>{e.skuRaw}</span>}
+                                {e.skuRaw && <span style={{fontFamily:"monospace",color:C.btnText,fontSize:10}}>{e.skuRaw}</span>}
                               </div>
                               <div style={{color:C.red,fontWeight:600}}>{e.reason}</div>
                               {e.orderId && <div style={{color:C.muted,fontSize:10,marginTop:2}}>Order: {e.orderId}</div>}
@@ -1681,7 +1717,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                         <div style={{...s.secTitle,color:C.orange}}>🔁 Duplicates — already imported ({dupLines.length})</div>
                         <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
                           {[...new Set(dupLines.map(d => d.orderId))].map(ordId => (
-                            <div key={ordId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",borderRadius:6,background:"#451a0340",border:"1px solid #92400e40",fontSize:12}}>
+                            <div key={ordId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",borderRadius:6,background:C.warnBgSubtle,border:`1px solid ${STATUS_STYLES.low.dot}40`,fontSize:12}}>
                               <span style={{fontFamily:"monospace",fontWeight:700,color:C.orange}}>{ordId}</span>
                               <span style={{fontSize:10,color:C.muted}}>Previously imported</span>
                             </div>
@@ -1692,7 +1728,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                       {errorLines.length === 0 && dupLines.length === 0 && (
                         <div style={{...s.card,textAlign:"center",padding:"32px 16px",border:"1px solid #166534"}}>
                           <div style={{fontSize:28,marginBottom:8}}>✅</div>
-                          <div style={{fontSize:13,fontWeight:700,color:"#4ade80",marginBottom:4}}>Clean Import</div>
+                          <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:4}}>Clean Import</div>
                           <div style={{fontSize:11,color:C.dim}}>No errors or duplicates detected</div>
                         </div>
                       )}
@@ -1709,16 +1745,16 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                               const newStock = Math.max(0, (item?.currentStock||0) - deduct);
                               const willOut = newStock === 0;
                               const willLow = !willOut && newStock <= (item?.reorderPoint||0);
-                              return <div key={sku} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",borderRadius:6,background:willOut?"#450a0a40":willLow?"#451a0340":"transparent",fontSize:12}}>
+                              return <div key={sku} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",borderRadius:6,background:willOut?C.dangerBgSubtle:willLow?C.warnBgSubtle:"transparent",fontSize:12}}>
                                 <div>
-                                  <div style={{fontFamily:"monospace",fontSize:10,color:"#94a3b8"}}>{sku}</div>
+                                  <div style={{fontFamily:"monospace",fontSize:10,color:C.btnText}}>{sku}</div>
                                   <div style={{fontSize:11,fontWeight:600,color:C.dim}}>{name}</div>
                                 </div>
                                 <div style={{display:"flex",alignItems:"center",gap:8,textAlign:"right"}}>
                                   <span style={{fontFamily:"monospace",color:C.muted}}>{item?.currentStock||0}</span>
                                   <span style={{color:C.muted,fontSize:10}}>→</span>
                                   <span style={{fontFamily:"monospace",fontWeight:700,color:willOut?C.red:willLow?C.orange:C.green}}>{newStock}</span>
-                                  {(willOut||willLow) && <span style={{fontSize:9,fontWeight:700,color:willOut?C.red:C.orange,background:willOut?"#450a0a":"#451a03",padding:"1px 5px",borderRadius:3}}>{willOut?"OUT":"LOW"}</span>}
+                                  {(willOut||willLow) && <span style={{fontSize:9,fontWeight:700,color:willOut?C.red:C.orange,background:willOut?C.dangerBg:STATUS_STYLES.low.bg,padding:"1px 5px",borderRadius:3}}>{willOut?"OUT":"LOW"}</span>}
                                 </div>
                               </div>;
                             });
@@ -1729,7 +1765,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   </div>
 
                   {/* Commit bar */}
-                  <div style={{...s.card,display:"flex",justifyContent:"space-between",alignItems:"center",borderColor:validLines.length>0?"#166534":C.border}}>
+                  <div style={{...s.card,display:"flex",justifyContent:"space-between",alignItems:"center",borderColor:validLines.length>0?STATUS_STYLES.ok.dot:C.border}}>
                     <div>
                       <div style={{fontSize:14,fontWeight:700}}>
                         {validLines.length === 0 ? "⚠ Nothing to import" : `✓ Ready to commit ${orderIds.length} order${orderIds.length!==1?"s":""}`}
@@ -1760,10 +1796,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 return <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:18}}>
                   <div style={{...s.card,textAlign:"center",padding:"52px 32px",border:"1px solid #166534"}}>
                     <div style={{fontSize:52,marginBottom:14}}>✅</div>
-                    <div style={{fontSize:22,fontWeight:800,color:"#4ade80",marginBottom:8}}>Upload Complete</div>
+                    <div style={{fontSize:22,fontWeight:800,color:C.green,marginBottom:8}}>Upload Complete</div>
                     <div style={{fontSize:14,color:C.dim,marginBottom:6}}>{validLines.length} line items across {orderIds.length} order{orderIds.length!==1?"s":""}</div>
                     <div style={{fontSize:13,color:C.muted,marginBottom:28}}>{totalUnits} units deducted from inventory</div>
-                    {errorLines.length > 0 && <div style={{marginBottom:20,padding:"10px 14px",background:"#450a0a40",border:"1px solid #7f1d1d",borderRadius:8,fontSize:12,color:C.orange}}>{errorLines.length} row{errorLines.length!==1?"s":""} had errors and were skipped</div>}
+                    {errorLines.length > 0 && <div style={{marginBottom:20,padding:"10px 14px",background:C.dangerBgSubtle,border:`1px solid ${C.dangerBorder}`,borderRadius:8,fontSize:12,color:C.orange}}>{errorLines.length} row{errorLines.length!==1?"s":""} had errors and were skipped</div>}
                     <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
                       <button style={s.btn("primary")} onClick={resetUpload}>Upload Another File</button>
                       <button style={s.btn("secondary")} onClick={() => { setUploadSubTab("log"); resetUpload(); }}>View Order Log →</button>
@@ -1774,7 +1810,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={s.card}>
                       <div style={s.secTitle}>What Happened</div>
                       {[
-                        ["Orders imported", orderIds.length, "#34d399"],
+                        ["Orders imported", orderIds.length, C.green],
                         ["Line items committed", validLines.length, C.blue],
                         ["Units deducted", totalUnits, C.amber],
                         ["Errors skipped", errorLines.length, errorLines.length > 0 ? C.red : C.muted],
@@ -1801,7 +1837,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
                 {[
                   ["Total Orders", allOrderIds.length, C.blue],
-                  ["Total Line Items", orders.length, "#34d399"],
+                  ["Total Line Items", orders.length, C.green],
                   ["Units Sold", totalUnitsOrdered, C.amber],
                   ["Avg Units / Order", avgUnitsPerOrder, C.purple],
                 ].map(([l,v,a]) => (
@@ -1841,14 +1877,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                         const impDate = oLines[0]?.importedAt || "—";
                         const exp = orderLogExpanded === ordId;
                         return <div key={ordId} style={{borderRadius:8,border:`1px solid ${exp?C.border+"80":C.border}`,overflow:"hidden",transition:"all 0.15s"}}>
-                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 110px 30px",gap:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?"#1e2d4540":C.bg}}>
+                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 110px 30px",gap:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?C.border:C.bg}}>
                             <span style={{fontFamily:"monospace",fontWeight:700,color:C.amber}}>{ordId}</span>
                             <span style={{fontSize:12,color:C.dim,textAlign:"center"}}>{oLines.length} SKU{oLines.length!==1?"s":""}</span>
                             <span style={{fontFamily:"monospace",fontSize:12,fontWeight:700,textAlign:"center"}}>{totalU} units</span>
                             <span style={{fontFamily:"monospace",fontSize:11,color:C.muted}}>{impDate}</span>
                             <span style={{fontSize:11,color:C.muted,textAlign:"right"}}>{exp?"▲":"▼"}</span>
                           </div>
-                          {exp && <div style={{background:"#060910"}}>
+                          {exp && <div style={{background:C.surfaceDeep}}>
                             <table style={s.table}>
                               <thead><tr>
                                 {["SKU","Product","Qty","Order Date","Imported At"].map(h => <th key={h} style={{...s.th,padding:"7px 16px"}}>{h}</th>)}
@@ -1856,7 +1892,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                               <tbody>
                                 {oLines.map((l,i) => (
                                   <tr key={i}>
-                                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8",padding:"8px 16px"}}>{l.sku}</td>
+                                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText,padding:"8px 16px"}}>{l.sku}</td>
                                     <td style={{...s.td,fontWeight:500,padding:"8px 16px",color:C.dim}}>{l.skuName||"—"}</td>
                                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700,padding:"8px 16px"}}>{l.qty}</td>
                                   <td style={{...s.td,fontFamily:"monospace",fontSize:11,color:C.dim,padding:"8px 16px"}}>{l.orderDate||l.importedAt}</td>
@@ -1886,7 +1922,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
                       {[
                         ["Total Orders",    allOrderIds.length, C.blue,   "imported to date"],
-                        ["Total Line Items",orders.length,      "#34d399","individual SKU rows"],
+                        ["Total Line Items",orders.length,      C.green,"individual SKU rows"],
                         ["Units Sold",      totalUnitsOrdered,  C.amber,  "units deducted"],
                         ["Avg Units/Order", avgUnitsPerOrder,   C.purple, "order size average"],
                       ].map(([l,v,a,sub]) => (
@@ -1942,7 +1978,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                               <span style={{fontSize:11,color:C.muted,width:22,textAlign:"right",flexShrink:0,fontFamily:"monospace"}}>#{i+1}</span>
                               <div style={{flex:1,minWidth:0}}>
                                 <div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{itm?.name||sku}</div>
-                                <div style={{fontFamily:"monospace",fontSize:10,color:"#94a3b8",marginBottom:4}}>{sku}</div>
+                                <div style={{fontFamily:"monospace",fontSize:10,color:C.btnText,marginBottom:4}}>{sku}</div>
                                 <div style={{height:4,background:C.border,borderRadius:99,overflow:"hidden"}}>
                                   <div style={{width:`${(orderCount/maxC)*100}%`,height:"100%",background:C.amber,borderRadius:99}}/>
                                 </div>
@@ -1970,7 +2006,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                             <tr key={week}>
                               <td style={{...s.td,fontFamily:"monospace",color:C.dim}}>{week}</td>
                               <td style={{...s.td,fontFamily:"monospace",fontWeight:700,color:C.blue}}>{cnt}</td>
-                              <td style={{...s.td,fontFamily:"monospace",color:"#94a3b8"}}>{lineItems}</td>
+                              <td style={{...s.td,fontFamily:"monospace",color:C.btnText}}>{lineItems}</td>
                               <td style={{...s.td,fontFamily:"monospace",fontWeight:700,color:C.amber}}>{units}</td>
                               <td style={{...s.td,fontFamily:"monospace",color:C.purple}}>{cnt>0?(units/cnt).toFixed(1):"—"}</td>
                             </tr>
@@ -2004,7 +2040,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22}}>
                     <div><div style={{fontSize:11,fontFamily:"monospace",color:C.dim}}>{item.sku}</div><div style={{fontSize:20,fontWeight:800}}>{item.name}</div></div>
                     <div style={{display:"flex",gap:16,textAlign:"right"}}>
-                      {[["In Stock",item.currentStock,C.blue],["Velocity",`${velocityFor(item.sku)}/wk`,C.amber],["Wks Left",velocityFor(item.sku)>0?Math.floor(item.currentStock/velocityFor(item.sku)):"∞",C.green],["Avg Cost",item.avgCost>0?`$${item.avgCost.toFixed(2)}`:"—","#34d399"],["On-Hand Value",item.avgCost>0?`$${(item.currentStock*item.avgCost).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—","#a78bfa"]].map(([l,v,a])=>(
+                      {[["In Stock",item.currentStock,C.blue],["Velocity",`${velocityFor(item.sku)}/wk`,C.amber],["Wks Left",velocityFor(item.sku)>0?Math.floor(item.currentStock/velocityFor(item.sku)):"∞",C.green],["Avg Cost",item.avgCost>0?`$${item.avgCost.toFixed(2)}`:"—",C.green],["On-Hand Value",item.avgCost>0?`$${(item.currentStock*item.avgCost).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—","#a78bfa"]].map(([l,v,a])=>(
                         <div key={l}><div style={s.statL}>{l}</div><div style={{...s.statV(a),fontSize:18}}>{v}</div></div>
                       ))}
                     </div>
@@ -2045,7 +2081,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 const costed = inventory.filter(i=>i.avgCost>0);
                 return costed.length>0&&<div style={{textAlign:"right"}}>
                   <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1}}>Total On-Hand Value</div>
-                  <div style={{fontSize:22,fontWeight:800,fontFamily:"monospace",color:"#34d399"}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                  <div style={{fontSize:22,fontWeight:800,fontFamily:"monospace",color:C.green}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
                 </div>;
               })()}
             </div>
@@ -2058,11 +2094,11 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     .flatMap(po=>po.lines.filter(l=>l.skuId===item.id&&l.received>0).map(l=>({...l,poNumber:po.poNumber})));
                   const onHandVal = (item.avgCost||0)*item.currentStock;
                   return <tr key={item.id}>
-                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
+                    <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{item.sku}</td>
                     <td style={{...s.td,fontWeight:600}}>{item.name}</td>
                     <td style={{...s.td,fontSize:12,color:C.dim}}>{item.category}</td>
                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700}}>{item.currentStock}</td>
-                    <td style={{...s.td,fontFamily:"monospace",color:item.avgCost>0?"#34d399":C.muted}}>{item.avgCost>0?`$${item.avgCost.toFixed(4)}`:"—"}</td>
+                    <td style={{...s.td,fontFamily:"monospace",color:item.avgCost>0?C.green:C.muted}}>{item.avgCost>0?`$${item.avgCost.toFixed(4)}`:"—"}</td>
                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700,color:onHandVal>0?C.text:C.muted}}>{onHandVal>0?`$${onHandVal.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</td>
                     <td style={s.td}>
                       {poLines.length>0
@@ -2072,13 +2108,13 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           </div>
                         :<span style={{fontSize:11,color:C.muted}}>No receipts yet</span>}
                     </td>
-                    <td style={s.td}>{item.avgCost>0?<span style={{fontSize:10,fontWeight:700,color:"#34d399",background:"#052e16",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>WAC</span>:<span style={{fontSize:11,color:C.muted}}>—</span>}</td>
+                    <td style={s.td}>{item.avgCost>0?<span style={{fontSize:10,fontWeight:700,color:C.green,background:STATUS_STYLES.ok.bg,padding:"2px 7px",borderRadius:4,letterSpacing:1}}>WAC</span>:<span style={{fontSize:11,color:C.muted}}>—</span>}</td>
                   </tr>;
                 })}
               </tbody>
             </table>
-            <div style={{marginTop:14,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:11,color:C.dim,borderLeft:`2px solid ${C.border}`,lineHeight:1.7}}>
-              <strong style={{color:"#94a3b8"}}>WAC (Weighted Average Cost)</strong> — recalculated on every PO receipt: <span style={{fontFamily:"monospace",color:C.amber}}>new avg = (units on hand × old avg cost + received qty × PO unit cost) ÷ new total units</span>. Avg cost resets to the PO price if stock was at zero.
+            <div style={{marginTop:14,padding:"10px 14px",background:C.surfaceDeep,borderRadius:8,fontSize:11,color:C.dim,borderLeft:`2px solid ${C.border}`,lineHeight:1.7}}>
+              <strong style={{color:C.btnText}}>WAC (Weighted Average Cost)</strong> — recalculated on every PO receipt: <span style={{fontFamily:"monospace",color:C.amber}}>new avg = (units on hand × old avg cost + received qty × PO unit cost) ÷ new total units</span>. Avg cost resets to the PO price if stock was at zero.
             </div>
           </div>
         </>}
@@ -2102,7 +2138,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
               {categories.map(cat => (
-                <div key={cat} style={{display:"flex",alignItems:"center",gap:6,background:"#060910",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px"}}>
+                <div key={cat} style={{display:"flex",alignItems:"center",gap:6,background:C.surfaceDeep,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px"}}>
                   <span style={{fontSize:13,color:C.text}}>{cat}</span>
                   <button
                     style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:14,lineHeight:1,padding:"0 2px"}}
@@ -2139,17 +2175,17 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               return <>
                 <div style={{fontSize:12,color:C.dim,marginBottom:12}}>{importModal.fileName}</div>
                 <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-                  {newCount>0 && <span style={{background:"#14532d",color:"#4ade80",borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{newCount} New</span>}
-                  {updateCount>0 && <span style={{background:"#1e3a5f",color:C.blue,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{updateCount} Update</span>}
-                  {errors.length>0 && <span style={{background:"#450a0a",color:C.red,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{errors.length} Error</span>}
+                  {newCount>0 && <span style={{background:C.successBg,color:C.green,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{newCount} New</span>}
+                  {updateCount>0 && <span style={{background:C.blueBg,color:C.blue,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{updateCount} Update</span>}
+                  {errors.length>0 && <span style={{background:C.dangerBg,color:C.red,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>{errors.length} Error</span>}
                 </div>
                 <div style={{overflowY:"auto",flex:1,marginBottom:16,border:`1px solid ${C.border}`,borderRadius:8}}>
                   <table style={{...s.table,margin:0}}>
                     <thead><tr>{["SKU","Name","Category","Stock","Reorder At","Order Qty","Status"].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
                     <tbody>
                       {importModal.rows.map((r,i)=>(
-                        <tr key={i} style={r.error?{background:"#1a0505"}:{}}>
-                          <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{r.sku||"—"}</td>
+                        <tr key={i} style={r.error?{background:C.errorRowBg}:{}}>
+                          <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:C.btnText}}>{r.sku||"—"}</td>
                           <td style={{...s.td,fontWeight:600}}>{r.name||"—"}</td>
                           <td style={{...s.td,fontSize:12,color:C.dim}}>{r.category}</td>
                           <td style={{...s.td,fontFamily:"monospace"}}>{r.currentStock}</td>
@@ -2159,7 +2195,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                             {r.error
                               ? <span style={{color:C.red,fontSize:11}}>{r.error}</span>
                               : r.action==="new"
-                                ? <span style={{color:"#4ade80",fontSize:11,fontWeight:700}}>New</span>
+                                ? <span style={{color:C.green,fontSize:11,fontWeight:700}}>New</span>
                                 : <span style={{color:C.blue,fontSize:11,fontWeight:700}}>Update</span>}
                           </td>
                         </tr>
@@ -2206,7 +2242,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             <div style={{fontSize:13,color:C.dim,marginBottom:20}}>{receiveModal.po.lines[receiveModal.lineIdx].sku} — {receiveModal.po.lines[receiveModal.lineIdx].name}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
               {[["Ordered",receiveModal.po.lines[receiveModal.lineIdx].qty],["Received",receiveModal.po.lines[receiveModal.lineIdx].received],["Remaining",receiveModal.po.lines[receiveModal.lineIdx].qty-receiveModal.po.lines[receiveModal.lineIdx].received]].map(([l,v])=>(
-                <div key={l} style={{background:"#060910",borderRadius:8,padding:12,textAlign:"center"}}>
+                <div key={l} style={{background:C.surfaceDeep,borderRadius:8,padding:12,textAlign:"center"}}>
                   <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
                   <div style={{fontSize:22,fontWeight:800,fontFamily:"monospace"}}>{v}</div>
                 </div>
