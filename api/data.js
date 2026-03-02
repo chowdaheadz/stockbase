@@ -44,9 +44,12 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = await parseBody(req);
+      console.log('POST key:', key);
+      console.log('POST body:', JSON.stringify(body));
+      console.log('POST value:', body.value);
       const { value } = body;
       if (value === undefined) {
-        return res.status(400).json({ error: 'Missing value in body' });
+        return res.status(400).json({ error: 'Missing value in body', receivedBody: body });
       }
       await sql`
         INSERT INTO app_data (key, value, updated_at)
@@ -56,11 +59,3 @@ export default async function handler(req, res) {
       `;
       return res.status(200).json({ success: true });
     }
-
-    return res.status(405).json({ error: 'Method not allowed' });
-
-  } catch (err) {
-    console.error('DB error:', err);
-    return res.status(500).json({ error: err.message });
-  }
-}
