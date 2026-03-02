@@ -101,6 +101,7 @@ export default function App() {
   const [poFilterStatus, setPoFilterStatus] = useState("all");
   const [poForm, setPoForm] = useState(null);
   const [receiveModal, setReceiveModal] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null);
   // Replenishment state
   const [replSelected, setReplSelected] = useState({});     // { skuId: qty }
   const [replSupplier, setReplSupplier] = useState("");
@@ -772,7 +773,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <td style={{...s.td,fontFamily:"monospace",color:avgCost>0?"#34d399":C.muted}}>{avgCost>0?`$${avgCost.toFixed(2)}`:"—"}</td>
                     <td style={{...s.td,fontFamily:"monospace",color:onHandValue>0?C.text:C.muted}}>{onHandValue>0?`$${onHandValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</td>
                     <td style={s.td}><span style={s.badge(st)}><span style={{width:5,height:5,borderRadius:"50%",background:STATUS_STYLES[st].dot,display:"inline-block"}} />{STATUS_STYLES[st].label}</span></td>
-                    <td style={s.td}><div style={{display:"flex",gap:4}}>{ed?<><button style={s.btn("primary")} onClick={()=>saveEdit(item)}>✓</button><button style={s.btn("secondary")} onClick={()=>setEditingId(null)}>✕</button></>:<><button style={s.btn("secondary")} onClick={()=>startEdit(item)}>Edit</button><button style={s.btn("danger")} onClick={()=>deleteSKU(item.id)}>Del</button></>}</div></td>
+                    <td style={s.td}><div style={{display:"flex",gap:4}}>{ed?<><button style={s.btn("primary")} onClick={()=>saveEdit(item)}>✓</button><button style={s.btn("secondary")} onClick={()=>setEditingId(null)}>✕</button></>:<><button style={s.btn("secondary")} onClick={()=>startEdit(item)}>Edit</button><button style={s.btn("danger")} onClick={()=>setDeleteModal(item)}>Del</button></>}</div></td>
                   </tr>;
                 })}
               </tbody>
@@ -1982,6 +1983,25 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           </div>
         </>}
       </main>
+
+      {/* ── DELETE SKU MODAL ── */}
+      {deleteModal && (
+        <div style={s.overlay} onClick={()=>setDeleteModal(null)}>
+          <div style={s.modal} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:5,color:C.red}}>Delete SKU?</div>
+            <div style={{fontSize:13,color:C.dim,marginBottom:16}}>
+              <span style={{fontFamily:"monospace",color:C.text}}>{deleteModal.sku}</span> — {deleteModal.name}
+            </div>
+            <div style={{fontSize:13,color:C.muted,marginBottom:24}}>
+              This will permanently remove the SKU and all associated data. This action cannot be undone.
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button style={s.btn("secondary")} onClick={()=>setDeleteModal(null)}>Cancel</button>
+              <button style={s.btn("danger")} onClick={()=>{ deleteSKU(deleteModal.id); setDeleteModal(null); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── RECEIVE MODAL ── */}
       {receiveModal && (
