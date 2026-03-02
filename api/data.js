@@ -1,4 +1,4 @@
-const { sql } = require('@vercel/postgres');
+import { sql } from '@vercel/postgres';
 
 async function initDB() {
   await sql`
@@ -10,7 +10,7 @@ async function initDB() {
   `;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   const password = req.headers['x-app-password'];
   if (password !== process.env.APP_PASSWORD) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -48,4 +48,4 @@ module.exports = async function handler(req, res) {
     console.error('DB error:', err);
     return res.status(500).json({ error: err.message });
   }
-};
+}
