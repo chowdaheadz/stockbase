@@ -1,8 +1,6 @@
 import { createPool } from '@vercel/postgres';
 
-const db = createPool({
-  connectionString: process.env.POSTGRES_URL
-});
+const db = createPool({ connectionString: process.env.POSTGRES_URL });
 
 async function initDB() {
   await db.sql`
@@ -33,11 +31,10 @@ export default async function handler(req, res) {
 
   try {
     await initDB();
-
     const { key } = req.query;
 
     if (req.method === 'GET') {
-      const result = await sql`
+      const result = await db.sql`
         SELECT value FROM app_data WHERE key = ${key}
       `;
       if (result.rows.length === 0) {
@@ -48,12 +45,9 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = await parseBody(req);
-      console.log('POST key:', key);
-      console.log('POST body:', JSON.stringify(body));
-      console.log('POST value:', body.value);
       const { value } = body;
       if (value === undefined) {
-        return res.status(400).json({ error: 'Missing value in body', receivedBody: body });
+        return res.status(400).json({ error: 'Missing value', received: body });
       }
       await db.sql`
         INSERT INTO app_data (key, value, updated_at)
@@ -63,3 +57,11 @@ export default async function handler(req, res) {
       `;
       return res.status(200).json({ success: true });
     }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('DB error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+}
