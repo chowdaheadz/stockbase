@@ -91,35 +91,71 @@ export default function App() {
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
+// Auth state
+  const [authed, setAuthed] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const storedPassword = useRef(sessionStorage.getItem("sb_pw") || "");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [invR, histR, posR, ordR] = await Promise.all([
-          window.storage.get("inventory"),
-          window.storage.get("salesHistory"),
-          window.storage.get("purchaseOrders"),
-          window.storage.get("orders"),
-        ]);
-        const inv  = invR  ? JSON.parse(invR.value)  : SAMPLE_SKUS;
-        const hist = histR ? JSON.parse(histR.value) : SAMPLE_HISTORY;
-        const pos  = posR  ? JSON.parse(posR.value)  : [];
-        const ord  = ordR  ? JSON.parse(ordR.value)  : [];
-        setInventory(inv); setSalesHistory(hist); setPurchaseOrders(pos); setOrders(ord);
-        if (inv.length) setSelectedSku(inv[0].sku);
-      } catch {
-        setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
-        setSelectedSku(SAMPLE_SKUS[0].sku);
-      }
+  // ── API HELPERS ───────────────────────────────────────────────────────────
+  async function dbGet(key) {
+    const res = await fetch(`/api/data?key=${key}`, {
+      headers: { "x-app-password": storedPassword.current }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.value;
+  }
+
+  async function dbSet(key, value) {
+    await fetch(`/api/data?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-password": storedPassword.current },
+      body: JSON.stringify({ value })
+    });
+  }
+
+  async function checkPassword(pw) {
+    const res = await fetch("/api/data?key=ping", {
+      headers: { "x-app-password": pw }
+    });
+    return res.status !== 401;
+  }
+useEffect(() => {
+    // If password already in session, load data straight away
+    if (storedPassword.current) {
+      setAuthed(true);
+      loadData();
+    } else {
       setLoading(false);
     }
-    load();
   }, []);
 
-  const saveInv  = async (d) => { try { await window.storage.set("inventory", JSON.stringify(d)); } catch {} };
-  const saveHist = async (d) => { try { await window.storage.set("salesHistory", JSON.stringify(d)); } catch {} };
-  const savePOs  = async (d) => { try { await window.storage.set("purchaseOrders", JSON.stringify(d)); } catch {} };
-  const saveOrders = async (d) => { try { await window.storage.set("orders", JSON.stringify(d)); } catch {} };
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [inv, hist, pos, ord] = await Promise.all([
+        dbGet("inventory"),
+        dbGet("salesHistory"),
+        dbGet("purchaseOrders"),
+        dbGet("orders"),
+      ]);
+      setInventory(inv || SAMPLE_SKUS);
+      setSalesHistory(hist || SAMPLE_HISTORY);
+      setPurchaseOrders(pos || []);
+      setOrders(ord || []);
+      if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
+    } catch {
+      setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
+      setSelectedSku(SAMPLE_SKUS[0].sku);
+    }
+    setLoading(false);
+  }
+
+const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} };
+  const saveHist   = async (d) => { try { await dbSet("salesHistory", d); } catch {} };
+  const savePOs    = async (d) => { try { await dbSet("purchaseOrders", d); } catch {} };
+  const saveOrders = async (d) => { try { await dbSet("orders", d); } catch {} };
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -578,7 +614,31 @@ export default function App() {
     overlay: { position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 },
     modal: { background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:32, width:420, boxShadow:"0 25px 60px #000" },
   };
-
+// Password screen
+  if (!authed) return (
+    <div style={{background:"#0a0d14",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
+      <div style={{background:"#0f1420",border:"1px solid #1e2d45",borderRadius:16,padding:"48px 40px",width:360,textAlign:"center"}}>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#f59e0b",marginBottom:8}}>⬡ STOCKBASE</div>
+        <div style={{fontSize:13,color:"#64748b",marginBottom:32}}>Enter your team password to continue</div>
+        <input
+          type="password"
+          placeholder="Password"
+          value={passwordInput}
+          onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
+          onKeyDown={async e => { if (e.key === "Enter") { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } } }}
+          style={{width:"100%",boxSizing:"border-box",background:"#0a0d14",border:`1px solid ${passwordError?"#ef4444":"#1e2d45"}`,color:"#e2e8f0",borderRadius:8,padding:"11px 14px",fontSize:14,fontFamily:"inherit",marginBottom:12,outline:"none"}}
+          autoFocus
+        />
+        {passwordError && <div style={{color:"#ef4444",fontSize:12,marginBottom:12}}>Incorrect password — try again</div>}
+        <button
+          style={{width:"100%",padding:"11px",background:"#f59e0b",color:"#0a0d14",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          onClick={async () => { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } }}
+        >
+          Unlock
+        </button>
+      </div>
+    </div>
+  );
   if (loading) return <div style={{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.amber,fontFamily:"monospace",fontSize:18,letterSpacing:4}}>LOADING...</div></div>;
 
   return (
