@@ -103,6 +103,7 @@ export default function App() {
   const [replSupplier, setReplSupplier] = useState("");
   const [replCreatedMsg, setReplCreatedMsg] = useState(null);
   const [replFilterUrgency, setReplFilterUrgency] = useState("all"); // all | critical | low | watch
+  const [replFilterCategory, setReplFilterCategory] = useState("all");
   const [replSearchTerm, setReplSearchTerm] = useState("");
   // Forecast state
   const [fcMethod, setFcMethod] = useState("weighted");   // simple | weighted | trend | seasonality
@@ -610,6 +611,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       })
       .filter(item => item.urg !== "ok")
       .filter(item => replFilterUrgency === "all" || item.urg === replFilterUrgency)
+      .filter(item => replFilterCategory === "all" || (item.category || "") === replFilterCategory)
       .filter(item => !replSearchTerm || item.sku.toLowerCase().includes(replSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(replSearchTerm.toLowerCase()))
       .sort((a, b) => {
         const order = { critical: 0, low: 1, watch: 2 };
@@ -939,28 +941,16 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           };
 
           return <>
-            {/* Summary bar */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
-              <div style={s.statCard(C.red)}>
-                <div style={s.statL}>Critical</div>
-                <div style={s.statV(C.red)}>{critCount}</div>
-                <div style={s.statS}>out of stock</div>
-              </div>
-              <div style={s.statCard(C.orange)}>
-                <div style={s.statL}>Low Stock</div>
-                <div style={s.statV(C.orange)}>{lowCount2}</div>
-                <div style={s.statS}>below reorder point</div>
-              </div>
-              <div style={s.statCard("#eab308")}>
-                <div style={s.statL}>Watch</div>
-                <div style={s.statV("#eab308")}>{watchCount}</div>
-                <div style={s.statS}>&lt;4 weeks runway</div>
-              </div>
-              <div style={s.statCard(C.purple)}>
-                <div style={s.statL}>Selected</div>
-                <div style={s.statV(C.purple)}>{selectedCount}</div>
-                <div style={s.statS}>{selectedTotal} units to order</div>
-              </div>
+            {/* Summary strip */}
+            <div style={{...s.card,padding:"9px 16px",marginBottom:14,display:"flex",gap:20,alignItems:"center",flexWrap:"wrap"}}>
+              {[[critCount,C.red,"Critical","out of stock"],[lowCount2,C.orange,"Low Stock","below reorder"],[watchCount,"#eab308","Watch","<4 wks runway"],[selectedCount,C.purple,"Selected",`${selectedTotal} units`]].map(([count,color,label,sub])=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:color,flexShrink:0}}/>
+                  <span style={{fontSize:13,fontWeight:700,color,fontFamily:"monospace"}}>{count}</span>
+                  <span style={{fontSize:12,color:C.dim}}>{label}</span>
+                  <span style={{fontSize:11,color:C.muted}}>— {sub}</span>
+                </div>
+              ))}
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:18,alignItems:"start"}}>
@@ -971,7 +961,17 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
                   <div style={s.secTitle}>NEEDS REPLENISHMENT — {replRows.length} SKU{replRows.length!==1?"s":""}</div>
                   <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                    <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                    <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:140,padding:"6px 10px"}} />
+                    {/* Category filter */}
+                    {(()=>{
+                      const cats = [...new Set(inventory.map(i=>i.category||"").filter(Boolean))].sort();
+                      return cats.length > 0 && (
+                        <select value={replFilterCategory} onChange={e=>setReplFilterCategory(e.target.value)} style={{...s.inp,padding:"6px 8px",fontSize:12,cursor:"pointer"}}>
+                          <option value="all">All Categories</option>
+                          {cats.map(c=><option key={c} value={c}>{c}</option>)}
+                        </select>
+                      );
+                    })()}
                     {/* Urgency filter pills */}
                     {[["all","All"],["critical","Critical"],["low","Low"],["watch","Watch"]].map(([v,l])=>(
                       <button key={v} onClick={()=>setReplFilterUrgency(v)} style={{...s.btn(replFilterUrgency===v?"primary":"secondary"),fontSize:11,padding:"5px 11px"}}>{l}</button>
