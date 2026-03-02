@@ -46,7 +46,31 @@ const PO_STATUS = {
   partial:  { label: "PARTIAL",          bg: "#451a03", color: "#fb923c" },
   received: { label: "RECEIVED",         bg: "#052e16", color: "#4ade80" },
 };
+function parseOrderDate(raw) {
+  if (!raw) return null;
+  const clean = raw.trim();
+  // Handle YYYY/DD/MM
+  const match = clean.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (match) {
+    const [, year, day, month] = match;
+    const d = new Date(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
+    if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  }
+  // Fallback — try native parsing
+  const d = new Date(clean);
+  if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  return null;
+}
 
+// Get the Monday of the week for a given date string (YYYY-MM-DD)
+function toWeekKey(dateStr) {
+  if (!dateStr) return new Date().toISOString().slice(0, 10);
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const day = d.getUTCDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
 function generatePONumber(existing) {
   const nums = existing.map(p => parseInt((p.poNumber || "").replace("PO-", "") || "0")).filter(Boolean);
   return `PO-${nums.length ? Math.max(...nums) + 1 : 1001}`;
@@ -197,12 +221,12 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
       // Figure out column positions from header
       const cols = rawLines[0].split(",").map(c => c.trim().replace(/"/g,"").toLowerCase().replace(/[_\s]/g,""));
-      const orderIdx = cols.findIndex(c => c.includes("order"));
+      const orderIdx = cols.findIndex(c => c.includes("order") && !c.includes("date"));
       const skuIdx   = cols.findIndex(c => c.includes("sku"));
       const qtyIdx   = cols.findIndex(c => c.includes("qty") || c.includes("quantity"));
+      const dateIdx  = cols.findIndex(c => c.includes("date") || c.includes("orderdate") || c.includes("order_date"));
 
-      const importedAt = new Date().toISOString().slice(0, 10);
-      const week = importedAt; // ISO date of import = week key
+    const importedAt = new Date().toISOString().slice(0, 10);
       const importedOrderIds = new Set(orders.map(o => o.orderId));
 
       const validLines   = [];
@@ -238,7 +262,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           return;
         }
 
-        const line = { id: `${Date.now()}-${rawIdx}`, orderId, sku: match.sku, skuId: match.id, skuName: match.name, qty, importedAt, week };
+        const rawDate = dateIdx >= 0 ? parts[dateIdx] : null;
+        const orderDate = parseOrderDate(rawDate) || importedAt;
+        const week = toWeekKey(orderDate);
+        const line = { id: `${Date.now()}-${rawIdx}`, orderId, sku: match.sku, skuId: match.id, skuName: match.name, qty, importedAt, orderDate, week };
         validLines.push(line);
         if (!orderMap[orderId]) orderMap[orderId] = [];
         orderMap[orderId].push(line);
@@ -1434,11 +1461,11 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={s.secTitle}>Required Format</div>
                     <div style={{background:"#060910",borderRadius:8,padding:16,fontFamily:"monospace",fontSize:12,color:"#94a3b8",lineHeight:2,marginBottom:14}}>
                       <div style={{color:C.dim,marginBottom:2}}># Headers (column order flexible)</div>
-                      <div style={{color:C.amber}}>Order#,SKU,Quantity</div>
-                      <div style={{color:C.green}}>ORD-1001,CHZ-001,2</div>
-                      <div style={{color:C.green}}>ORD-1001,CHZ-003,1</div>
-                      <div style={{color:C.green}}>ORD-1002,CHZ-001,1</div>
-                      <div style={{color:C.green}}>ORD-1002,CHZ-007,4</div>
+               <div style={{color:C.amber}}>Order#,SKU,Quantity,OrderDate</div>
+                    <div style={{color:C.green}}>ORD-1001,CHZ-001,2,2024/15/03</div>
+                    <div style={{color:C.green}}>ORD-1001,CHZ-003,1,2024/15/03</div>
+                    <div style={{color:C.green}}>ORD-1002,CHZ-001,1,2024/16/03</div>
+                    <div style={{color:C.green}}>ORD-1002,CHZ-007,4,2024/16/03</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:7,fontSize:12,color:C.dim}}>
                       {["Each row = one line item from one order","Column names are flexible (OrderID, order_num etc.)","Orders with duplicate # are detected and skipped","Unknown SKUs flagged — valid rows still import","You review everything before inventory is touched"].map(tip => (
@@ -1723,7 +1750,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           {exp && <div style={{background:"#060910"}}>
                             <table style={s.table}>
                               <thead><tr>
-                                {["SKU","Product","Qty","Imported At"].map(h => <th key={h} style={{...s.th,padding:"7px 16px"}}>{h}</th>)}
+                                {["SKU","Product","Qty","Order Date","Imported At"].map(h => <th key={h} style={{...s.th,padding:"7px 16px"}}>{h}</th>)}
                               </tr></thead>
                               <tbody>
                                 {oLines.map((l,i) => (
@@ -1731,6 +1758,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                                     <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8",padding:"8px 16px"}}>{l.sku}</td>
                                     <td style={{...s.td,fontWeight:500,padding:"8px 16px",color:C.dim}}>{l.skuName||"—"}</td>
                                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700,padding:"8px 16px"}}>{l.qty}</td>
+                                  <td style={{...s.td,fontFamily:"monospace",fontSize:11,color:C.dim,padding:"8px 16px"}}>{l.orderDate||l.importedAt}</td>
                                     <td style={{...s.td,fontFamily:"monospace",fontSize:11,color:C.muted,padding:"8px 16px"}}>{l.importedAt}</td>
                                   </tr>
                                 ))}
