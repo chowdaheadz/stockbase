@@ -373,7 +373,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     validRows.forEach(r => {
       const idx = newInv.findIndex(i => i.sku === r.sku);
       if (idx >= 0) {
-        newInv[idx] = { ...newInv[idx], currentStock: r.currentStock, ...(r.reorderPoint > 0 && { reorderPoint: r.reorderPoint }), ...(r.reorderQty > 0 && { reorderQty: r.reorderQty }) };
+        newInv[idx] = { ...newInv[idx], currentStock: r.currentStock, ...(r.category && { category: r.category }), ...(r.reorderPoint > 0 && { reorderPoint: r.reorderPoint }), ...(r.reorderQty > 0 && { reorderQty: r.reorderQty }) };
       } else {
         newInv.push({ id: Date.now().toString() + Math.random().toString(36).slice(2), sku: r.sku, name: r.name, category: r.category, currentStock: r.currentStock, reorderPoint: r.reorderPoint, reorderQty: r.reorderQty, avgCost: 0 });
       }
