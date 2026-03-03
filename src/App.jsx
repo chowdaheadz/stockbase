@@ -96,6 +96,7 @@ export default function App() {
   const [receiveModal, setReceiveModal] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
   const [importModal, setImportModal] = useState(null);
+  const [showImportGuide, setShowImportGuide] = useState(false);
   const [categories, setCategories] = useState(["Headwear","Apparel","Accessories","Footwear","Uncategorized"]);
   const [newCatInput, setNewCatInput] = useState("");
   const [invSort, setInvSort] = useState({ col: null, dir: "asc" });
@@ -867,7 +868,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
                 <option value="all">All</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
               </select>
-              <button style={s.btn("blue")} onClick={()=>importRef.current.click()}>↑ Import CSV</button>
+              <button style={s.btn("blue")} onClick={()=>setShowImportGuide(true)}>↑ Import CSV</button>
               <button style={s.btn("primary")} onClick={addSKU}>+ Add SKU</button>
             </div>
           </div>
@@ -2178,6 +2179,54 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
         </div>}
 
       </main>
+
+      {/* ── IMPORT CSV FORMAT GUIDE ── */}
+      {showImportGuide && (
+        <div style={s.overlay} onClick={()=>setShowImportGuide(false)}>
+          <div style={{...s.modal,width:600,maxWidth:"95vw"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:4}}>Import Inventory CSV</div>
+            <div style={{fontSize:12,color:C.dim,marginBottom:18}}>Your file must be a <strong style={{color:C.text}}>.csv</strong> with a header row. Column names are case-insensitive.</div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Required Columns</div>
+              <div style={{display:"grid",gridTemplateColumns:"auto 1fr auto",gap:"6px 16px",alignItems:"start"}}>
+                {[["SKU","Unique product code","—"],["Name","Product name (also: Product, Item)","—"]].map(([col,desc,ex])=>(
+                  <><span key={col+"k"} style={{fontFamily:"monospace",fontSize:12,color:C.text,background:C.surfaceDeep,padding:"2px 7px",borderRadius:4,whiteSpace:"nowrap"}}>{col}</span>
+                  <span key={col+"d"} style={{fontSize:12,color:C.dim}}>{desc}</span>
+                  <span key={col+"e"} style={{fontSize:12,color:C.muted,fontFamily:"monospace"}}>{ex}</span></>
+                ))}
+              </div>
+            </div>
+
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.blue,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Optional Columns</div>
+              <div style={{display:"grid",gridTemplateColumns:"auto 1fr auto",gap:"6px 16px",alignItems:"start"}}>
+                {[
+                  ["Category","Category or type (also: Type)","Headwear"],
+                  ["Stock","Current units on hand (also: Qty, Quantity, OnHand)","50"],
+                  ["Reorder At","Reorder trigger point (also: ReorderPoint, MinStock)","10"],
+                  ["Order Qty","Quantity per order (also: ReorderQty, ReorderQuantity)","24"],
+                ].map(([col,desc,ex])=>(
+                  <><span key={col+"k"} style={{fontFamily:"monospace",fontSize:12,color:C.text,background:C.surfaceDeep,padding:"2px 7px",borderRadius:4,whiteSpace:"nowrap"}}>{col}</span>
+                  <span key={col+"d"} style={{fontSize:12,color:C.dim}}>{desc}</span>
+                  <span key={col+"e"} style={{fontSize:12,color:C.muted,fontFamily:"monospace"}}>{ex}</span></>
+                ))}
+              </div>
+            </div>
+
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Example</div>
+              <pre style={{margin:0,padding:"10px 14px",background:C.surfaceDeep,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11,color:C.text,lineHeight:1.6,overflowX:"auto"}}>{`SKU,Name,Category,Stock,Reorder At,Order Qty\nHAT-001,Classic Cap,Headwear,50,10,24\nTEE-002,Logo Tee,Apparel,120,20,48\nACC-003,Tote Bag,Accessories,0,5,12`}</pre>
+              <div style={{fontSize:11,color:C.dim,marginTop:6}}>Existing SKUs matched by SKU code will be updated; unrecognised SKUs will be added as new.</div>
+            </div>
+
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button style={s.btn("secondary")} onClick={()=>setShowImportGuide(false)}>Cancel</button>
+              <button style={s.btn("primary")} onClick={()=>{ setShowImportGuide(false); importRef.current.click(); }}>Choose File →</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── IMPORT SKU MODAL ── */}
       {importModal && (
