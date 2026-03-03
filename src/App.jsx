@@ -118,6 +118,7 @@ export default function App() {
   const [fcWeeks, setFcWeeks] = useState(8);
   const [fcSupplier, setFcSupplier] = useState("");
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
+  const [fcApplied, setFcApplied] = useState({ method:"weighted", window:"all", weeks:8, seasonality:{ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 } });
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
 // Auth state
@@ -182,6 +183,12 @@ useEffect(() => {
         if (fcSaved.fcWindow)      setFcWindow(fcSaved.fcWindow);
         if (fcSaved.fcWeeks)       setFcWeeks(fcSaved.fcWeeks);
         if (fcSaved.fcSeasonality) setFcSeasonality(fcSaved.fcSeasonality);
+        setFcApplied({
+          method:     fcSaved.fcMethod       || "weighted",
+          window:     fcSaved.fcWindow       || "all",
+          weeks:      fcSaved.fcWeeks        || 8,
+          seasonality: fcSaved.fcSeasonality || { Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 },
+        });
       }
       if (ftpSaved) setFtpSettings({ host:ftpSaved.host||"", port:ftpSaved.port||"21", user:ftpSaved.user||"", password:ftpSaved.password||"", path:ftpSaved.path||"/" });
       if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
@@ -588,7 +595,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     return inventory
       .filter(item => !fcSearchTerm || item.sku.toLowerCase().includes(fcSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(fcSearchTerm.toLowerCase()))
       .map(item => {
-        const fc = forecastSKU(item.sku, fcMethod, fcWindow, fcWeeks, fcSeasonality);
+        const fc = forecastSKU(item.sku, fcApplied.method, fcApplied.window, fcApplied.weeks, fcApplied.seasonality);
         const suggestedOrder = Math.max(0, fc.forecastUnits - item.currentStock);
         // Round up to nearest reorder qty increment
         const roundedOrder = item.reorderQty > 0
@@ -608,7 +615,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       supplier: fcSupplier || "TBD",
       status: "draft",
       createdAt: new Date().toISOString().slice(0, 10),
-      notes: `Auto-generated from forecast: ${fcMethod} method, ${fcWeeks}-week horizon, ${fcWindow === "yoy" ? "YoY" : "all history"} data`,
+      notes: `Auto-generated from forecast: ${fcApplied.method} method, ${fcApplied.weeks}-week horizon, ${fcApplied.window === "yoy" ? "YoY" : "all history"} data`,
       lines: rows.map(r => ({
         skuId: r.id, sku: r.sku, name: r.name,
         qty: r.roundedOrder,
@@ -1383,6 +1390,8 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           const skusNeedingOrder = fcRows.filter(r=>r.roundedOrder>0).length;
           const methodLabels = { simple:"Simple Average", weighted:"Weighted Recent", trend:"Trend-Adjusted", seasonality:"Seasonality Override" };
           const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const fcDirty = fcApplied.method !== fcMethod || fcApplied.window !== fcWindow || fcApplied.weeks !== fcWeeks || JSON.stringify(fcApplied.seasonality) !== JSON.stringify(fcSeasonality);
+          const applyForecast = () => { const a = { method:fcMethod, window:fcWindow, weeks:fcWeeks, seasonality:fcSeasonality }; setFcApplied(a); saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality }); };
 
           return <>
             {/* Summary + PO creation */}
@@ -1390,7 +1399,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <div>
                 <div style={s.secTitle}>Forecast Summary</div>
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {[["Method",methodLabels[fcMethod],C.amber],["Window",fcWindow==="yoy"?"Year over Year":"All History",C.blue],["Horizon",`${fcWeeks} weeks`,C.text],["Total Demand",`${totalForecastUnits.toLocaleString()} units`,C.green],["SKUs to Order",`${skusNeedingOrder} of ${fcRows.length}`,C.orange],["Total to Order",`${totalSuggestedOrder.toLocaleString()} units`,C.purple]].map(([l,v,c])=>(
+                  {[["Method",methodLabels[fcApplied.method],C.amber],["Window",fcApplied.window==="yoy"?"Year over Year":"All History",C.blue],["Horizon",`${fcApplied.weeks} weeks`,C.text],["Total Demand",`${totalForecastUnits.toLocaleString()} units`,C.green],["SKUs to Order",`${skusNeedingOrder} of ${fcRows.length}`,C.orange],["Total to Order",`${totalSuggestedOrder.toLocaleString()} units`,C.purple]].map(([l,v,c])=>(
                     <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${C.border}`}}>
                       <span style={{fontSize:11,color:C.dim}}>{l}</span>
                       <span style={{fontSize:12,fontWeight:700,color:c,fontFamily:"monospace"}}>{v}</span>
@@ -1471,6 +1480,13 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={{fontSize:10,color:C.dim,marginTop:8}}>1.0 = baseline · 1.5 = 50% above · 0.8 = 20% below</div>
                   </div>
                 </div>
+                <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:14}}>
+                  {fcDirty && <div style={{fontSize:12,color:C.amber,fontWeight:600}}>Settings changed — click Generate to update results</div>}
+                  <button
+                    style={{...s.btn(fcDirty?"primary":"secondary"),padding:"9px 28px",fontSize:13,fontWeight:700,opacity:fcDirty?1:0.6}}
+                    onClick={applyForecast}
+                  >Generate Forecast</button>
+                </div>
               </div>;
             })()}
 
@@ -1481,7 +1497,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 <input placeholder="Filter SKU or name..." value={fcSearchTerm} onChange={e=>setFcSearchTerm(e.target.value)} style={{...s.inp,width:200,padding:"7px 12px",marginLeft:"auto"}} />
               </div>
               <div style={{fontSize:11,color:C.dim,marginBottom:14}}>
-                {methodLabels[fcMethod]} · {fcWindow==="yoy"?"Year over Year":"All History"} · {fcWeeks} wks horizon
+                {methodLabels[fcApplied.method]} · {fcApplied.window==="yoy"?"Year over Year":"All History"} · {fcApplied.weeks} wks horizon
               </div>
               <div style={{overflowX:"auto"}}>
                 <table style={s.table}>
