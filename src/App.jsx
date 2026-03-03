@@ -118,7 +118,8 @@ export default function App() {
   const [fcWeeks, setFcWeeks] = useState(8);
   const [fcSupplier, setFcSupplier] = useState("");
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
-  const [fcApplied, setFcApplied] = useState({ method:"weighted", window:"all", weeks:8, seasonality:{ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 } });
+  const [fcLeadTimes, setFcLeadTimes] = useState({});  // { [category]: weeks }
+  const [fcApplied, setFcApplied] = useState({ method:"weighted", window:"all", weeks:8, seasonality:{ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 }, leadTimes:{} });
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
 // Auth state
@@ -183,11 +184,13 @@ useEffect(() => {
         if (fcSaved.fcWindow)      setFcWindow(fcSaved.fcWindow);
         if (fcSaved.fcWeeks)       setFcWeeks(fcSaved.fcWeeks);
         if (fcSaved.fcSeasonality) setFcSeasonality(fcSaved.fcSeasonality);
+        if (fcSaved.fcLeadTimes) setFcLeadTimes(fcSaved.fcLeadTimes);
         setFcApplied({
-          method:     fcSaved.fcMethod       || "weighted",
-          window:     fcSaved.fcWindow       || "all",
-          weeks:      fcSaved.fcWeeks        || 8,
-          seasonality: fcSaved.fcSeasonality || { Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 },
+          method:      fcSaved.fcMethod       || "weighted",
+          window:      fcSaved.fcWindow       || "all",
+          weeks:       fcSaved.fcWeeks        || 8,
+          seasonality: fcSaved.fcSeasonality  || { Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 },
+          leadTimes:   fcSaved.fcLeadTimes    || {},
         });
       }
       if (ftpSaved) setFtpSettings({ host:ftpSaved.host||"", port:ftpSaved.port||"21", user:ftpSaved.user||"", password:ftpSaved.password||"", path:ftpSaved.path||"/" });
@@ -595,13 +598,15 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     return inventory
       .filter(item => !fcSearchTerm || item.sku.toLowerCase().includes(fcSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(fcSearchTerm.toLowerCase()))
       .map(item => {
-        const fc = forecastSKU(item.sku, fcApplied.method, fcApplied.window, fcApplied.weeks, fcApplied.seasonality);
+        const leadTime = fcApplied.leadTimes?.[item.category] || 0;
+        const effectiveWeeks = fcApplied.weeks + leadTime;
+        const fc = forecastSKU(item.sku, fcApplied.method, fcApplied.window, effectiveWeeks, fcApplied.seasonality);
         const suggestedOrder = Math.max(0, fc.forecastUnits - item.currentStock);
         // Round up to nearest reorder qty increment
         const roundedOrder = item.reorderQty > 0
           ? Math.ceil(suggestedOrder / item.reorderQty) * item.reorderQty
           : suggestedOrder;
-        return { ...item, ...fc, suggestedOrder, roundedOrder };
+        return { ...item, ...fc, suggestedOrder, roundedOrder, leadTime, effectiveWeeks };
       })
       .sort((a, b) => b.roundedOrder - a.roundedOrder);
   }
@@ -1390,8 +1395,8 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           const skusNeedingOrder = fcRows.filter(r=>r.roundedOrder>0).length;
           const methodLabels = { simple:"Simple Average", weighted:"Weighted Recent", trend:"Trend-Adjusted", seasonality:"Seasonality Override" };
           const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-          const fcDirty = fcApplied.method !== fcMethod || fcApplied.window !== fcWindow || fcApplied.weeks !== fcWeeks || JSON.stringify(fcApplied.seasonality) !== JSON.stringify(fcSeasonality);
-          const applyForecast = () => { const a = { method:fcMethod, window:fcWindow, weeks:fcWeeks, seasonality:fcSeasonality }; setFcApplied(a); saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality }); };
+          const fcDirty = fcApplied.method !== fcMethod || fcApplied.window !== fcWindow || fcApplied.weeks !== fcWeeks || JSON.stringify(fcApplied.seasonality) !== JSON.stringify(fcSeasonality) || JSON.stringify(fcApplied.leadTimes) !== JSON.stringify(fcLeadTimes);
+          const applyForecast = () => { const a = { method:fcMethod, window:fcWindow, weeks:fcWeeks, seasonality:fcSeasonality, leadTimes:fcLeadTimes }; setFcApplied(a); saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality, fcLeadTimes }); };
 
           return <>
             {/* Summary + PO creation */}
@@ -1428,7 +1433,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
             {/* Forecast Settings */}
             {(()=>{
-              const save = (patch) => saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality, ...patch });
+              const save = (patch) => saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality, fcLeadTimes, ...patch });
               return <div style={{...s.card,marginBottom:14}}>
                 <div style={s.secTitle}>Forecast Settings</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14}}>
@@ -1480,6 +1485,34 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={{fontSize:10,color:C.dim,marginTop:8}}>1.0 = baseline · 1.5 = 50% above · 0.8 = 20% below</div>
                   </div>
                 </div>
+                {categories.length > 0 && <div style={{marginTop:18,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+                  <div style={{...s.lbl,marginBottom:10}}>Lead Time by Category <span style={{fontWeight:400,color:C.muted}}>(weeks added to horizon)</span></div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
+                    {categories.map(cat => {
+                      const lt = fcLeadTimes[cat] || "";
+                      return (
+                        <div key={cat} style={{display:"flex",alignItems:"center",gap:8,background:C.surfaceDeep,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px"}}>
+                          <span style={{fontSize:12,color:C.text,flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}} title={cat}>{cat}</span>
+                          <input
+                            type="number" min="0" max="52" step="1"
+                            placeholder="0"
+                            value={lt}
+                            onChange={e => {
+                              const v = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0);
+                              const next = { ...fcLeadTimes, [cat]: v === "" ? 0 : v };
+                              if (v === "" || v === 0) delete next[cat];
+                              setFcLeadTimes(next);
+                            }}
+                            style={{...s.inp,width:48,padding:"4px 6px",fontSize:12,textAlign:"center",flexShrink:0}}
+                          />
+                          <span style={{fontSize:11,color:C.dim,flexShrink:0}}>wk{(parseInt(lt)||0)!==1?"s":""}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{fontSize:11,color:C.dim,marginTop:8}}>e.g. Frozen = 4 weeks means items in that category forecast {fcWeeks}+4 = {fcWeeks+4} weeks of demand</div>
+                </div>}
+
                 <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:14}}>
                   {fcDirty && <div style={{fontSize:12,color:C.amber,fontWeight:600}}>Settings changed — click Generate to update results</div>}
                   <button
@@ -1523,7 +1556,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           {item.trend!==0&&<div style={{fontSize:10,color:item.trend>0?C.green:C.red}}>{item.trend>0?"↑":"↓"} {Math.abs(item.trend)}/wk trend</div>}
                           <div style={{fontSize:10,color:C.muted,marginTop:2}}>{item.note}</div>
                         </td>
-                        <td style={{...s.td,fontFamily:"monospace",fontWeight:700,fontSize:15}}>{item.forecastUnits}</td>
+                        <td style={{...s.td,fontFamily:"monospace",fontWeight:700,fontSize:15}}>
+                          {item.forecastUnits}
+                          {item.leadTime>0&&<div style={{fontSize:10,color:C.blue,fontWeight:400,marginTop:2}}>{item.effectiveWeeks}w ({fcApplied.weeks}+{item.leadTime} lead)</div>}
+                        </td>
                         <td style={s.td}>
                           {covered
                             ?<span style={{fontSize:11,fontWeight:700,color:C.green,background:STATUS_STYLES.ok.bg,padding:"3px 8px",borderRadius:4}}>✓ {weeksOfStock} wks</span>
