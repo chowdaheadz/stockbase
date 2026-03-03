@@ -1376,6 +1376,63 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               </div>
             </div>
 
+            {/* Forecast Settings */}
+            {(()=>{
+              const save = (patch) => saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality, ...patch });
+              return <div style={{...s.card,marginBottom:14}}>
+                <div style={s.secTitle}>Forecast Settings</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14}}>
+                  {/* Method */}
+                  <div>
+                    <div style={{...s.lbl,marginBottom:10}}>Forecast Method</div>
+                    {[["simple","Simple Average","Avg weekly sales × forecast weeks"],["weighted","Weighted Recent","Recent weeks weighted 85% decay — reacts faster to change"],["trend","Trend-Adjusted","Linear regression — detects growth or decline slope"],["seasonality","Seasonality Override","Weighted base × your monthly peak multipliers"]].map(([id,label,desc])=>(
+                      <div key={id} onClick={()=>{ setFcMethod(id); save({ fcMethod:id }); }} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:6,background:fcMethod===id?C.navActive:C.surfaceDeep,border:`1px solid ${fcMethod===id?C.amber:C.border}`,transition:"all 0.15s"}}>
+                        <div style={{fontSize:12,fontWeight:700,color:fcMethod===id?C.amber:C.text,marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:10,color:C.dim,lineHeight:1.5}}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Data Window + Horizon */}
+                  <div>
+                    <div style={{...s.lbl,marginBottom:10}}>Data Window</div>
+                    {[["all","All Available History","Uses every week of sales data uploaded so far"],["yoy","Year over Year","Matches same calendar weeks from the prior year — great for seasonal businesses"]].map(([id,label,desc])=>(
+                      <div key={id} onClick={()=>{ setFcWindow(id); save({ fcWindow:id }); }} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:8,background:fcWindow===id?`${C.blue}18`:C.surfaceDeep,border:`1px solid ${fcWindow===id?C.blue:C.border}`,transition:"all 0.15s"}}>
+                        <div style={{fontSize:12,fontWeight:700,color:fcWindow===id?C.blue:C.text,marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:10,color:C.dim,lineHeight:1.5}}>{desc}</div>
+                      </div>
+                    ))}
+                    <div style={{marginTop:16}}>
+                      <div style={{...s.lbl,marginBottom:8}}>Forecast Horizon</div>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {[2,4,6,8,12,16,26].map(w=>(
+                          <button key={w} onClick={()=>{ setFcWeeks(w); save({ fcWeeks:w }); }} style={{...s.btn(fcWeeks===w?"primary":"secondary"),padding:"6px 12px",fontSize:12}}>{w}w</button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:11,color:C.dim,marginTop:8}}>Forecasting <strong style={{color:C.text}}>{fcWeeks} weeks</strong> of demand ahead</div>
+                    </div>
+                  </div>
+                  {/* Seasonality */}
+                  <div style={{opacity:fcMethod==="seasonality"?1:0.45,pointerEvents:fcMethod==="seasonality"?"auto":"none",transition:"opacity 0.2s"}}>
+                    <div style={{...s.lbl,marginBottom:10}}>Monthly Multipliers {fcMethod!=="seasonality"&&<span style={{color:C.muted,fontWeight:400,letterSpacing:0}}>(enable Seasonality method)</span>}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                      {monthNames.map(m=>(
+                        <div key={m}>
+                          <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{m}</div>
+                          <input
+                            type="number" step="0.05" min="0.1" max="5"
+                            value={fcSeasonality[m]}
+                            onChange={e=>{ const v=parseFloat(e.target.value)||1; const next={...fcSeasonality,[m]:v}; setFcSeasonality(next); save({ fcSeasonality:next }); }}
+                            style={{...s.inp,width:"100%",boxSizing:"border-box",fontSize:12,padding:"5px 6px",color:fcSeasonality[m]>1?C.orange:fcSeasonality[m]<1?C.blue:C.text}}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:10,color:C.dim,marginTop:8}}>1.0 = baseline · 1.5 = 50% above · 0.8 = 20% below</div>
+                  </div>
+                </div>
+              </div>;
+            })()}
+
             {/* Results table */}
             <div style={s.card}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6,flexWrap:"wrap"}}>
@@ -1384,7 +1441,6 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               </div>
               <div style={{fontSize:11,color:C.dim,marginBottom:14}}>
                 {methodLabels[fcMethod]} · {fcWindow==="yoy"?"Year over Year":"All History"} · {fcWeeks} wks horizon
-                <span style={{marginLeft:10,cursor:"pointer",color:C.blue,textDecoration:"underline"}} onClick={()=>setTab("admin")}>↗ Edit settings in Admin</span>
               </div>
               <div style={{overflowX:"auto"}}>
                 <table style={s.table}>
@@ -2114,68 +2170,6 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             </div>
           </div>
 
-          {/* Forecast Settings */}
-          <div style={s.card}>
-            <div style={s.secTitle}>Forecast Settings</div>
-            <div style={{fontSize:12,color:C.dim,marginBottom:18}}>
-              Configure the forecasting model used across the Forecast tab. Changes take effect immediately and are saved automatically.
-            </div>
-            {(()=>{
-              const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-              const save = (patch) => saveFcSettings({ fcMethod, fcWindow, fcWeeks, fcSeasonality, ...patch });
-              return <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
-                {/* Method */}
-                <div>
-                  <div style={{...s.lbl,marginBottom:10}}>Forecast Method</div>
-                  {[["simple","Simple Average","Avg weekly sales × forecast weeks"],["weighted","Weighted Recent","Recent weeks weighted 85% decay — reacts faster to change"],["trend","Trend-Adjusted","Linear regression — detects growth or decline slope"],["seasonality","Seasonality Override","Weighted base × your monthly peak multipliers"]].map(([id,label,desc])=>(
-                    <div key={id} onClick={()=>{ setFcMethod(id); save({ fcMethod:id }); }} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:6,background:fcMethod===id?C.navActive:C.surfaceDeep,border:`1px solid ${fcMethod===id?C.amber:C.border}`,transition:"all 0.15s"}}>
-                      <div style={{fontSize:12,fontWeight:700,color:fcMethod===id?C.amber:C.text,marginBottom:3}}>{label}</div>
-                      <div style={{fontSize:10,color:C.dim,lineHeight:1.5}}>{desc}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Data Window + Horizon */}
-                <div>
-                  <div style={{...s.lbl,marginBottom:10}}>Data Window</div>
-                  {[["all","All Available History","Uses every week of sales data uploaded so far"],["yoy","Year over Year","Matches same calendar weeks from the prior year — great for seasonal businesses"]].map(([id,label,desc])=>(
-                    <div key={id} onClick={()=>{ setFcWindow(id); save({ fcWindow:id }); }} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:8,background:fcWindow===id?`${C.blue}18`:C.surfaceDeep,border:`1px solid ${fcWindow===id?C.blue:C.border}`,transition:"all 0.15s"}}>
-                      <div style={{fontSize:12,fontWeight:700,color:fcWindow===id?C.blue:C.text,marginBottom:3}}>{label}</div>
-                      <div style={{fontSize:10,color:C.dim,lineHeight:1.5}}>{desc}</div>
-                    </div>
-                  ))}
-                  <div style={{marginTop:16}}>
-                    <div style={{...s.lbl,marginBottom:8}}>Forecast Horizon</div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                      {[2,4,6,8,12,16,26].map(w=>(
-                        <button key={w} onClick={()=>{ setFcWeeks(w); save({ fcWeeks:w }); }} style={{...s.btn(fcWeeks===w?"primary":"secondary"),padding:"6px 12px",fontSize:12}}>{w}w</button>
-                      ))}
-                    </div>
-                    <div style={{fontSize:11,color:C.dim,marginTop:8}}>Forecasting <strong style={{color:C.text}}>{fcWeeks} weeks</strong> of demand ahead</div>
-                  </div>
-                </div>
-
-                {/* Seasonality */}
-                <div style={{opacity:fcMethod==="seasonality"?1:0.45,pointerEvents:fcMethod==="seasonality"?"auto":"none",transition:"opacity 0.2s"}}>
-                  <div style={{...s.lbl,marginBottom:10}}>Monthly Multipliers {fcMethod!=="seasonality"&&<span style={{color:C.muted,fontWeight:400,letterSpacing:0}}>(enable Seasonality method)</span>}</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-                    {monthNames.map(m=>(
-                      <div key={m}>
-                        <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{m}</div>
-                        <input
-                          type="number" step="0.05" min="0.1" max="5"
-                          value={fcSeasonality[m]}
-                          onChange={e=>{ const v=parseFloat(e.target.value)||1; const next={...fcSeasonality,[m]:v}; setFcSeasonality(next); save({ fcSeasonality:next }); }}
-                          style={{...s.inp,width:"100%",boxSizing:"border-box",fontSize:12,padding:"5px 6px",color:fcSeasonality[m]>1?C.orange:fcSeasonality[m]<1?C.blue:C.text}}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{fontSize:10,color:C.dim,marginTop:8}}>1.0 = baseline · 1.5 = 50% above · 0.8 = 20% below</div>
-                </div>
-              </div>;
-            })()}
-          </div>
         </div>}
 
       </main>
