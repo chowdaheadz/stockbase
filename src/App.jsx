@@ -82,6 +82,11 @@ export default function App() {
   const [uploadSubTab, setUploadSubTab] = useState("upload"); // upload | log | analytics
   const [orderLogSearch, setOrderLogSearch] = useState("");
   const [orderLogExpanded, setOrderLogExpanded] = useState(null);
+  const [ftpSettings, setFtpSettings] = useState({ host:"", port:"21", user:"", password:"", path:"/" });
+  const [ftpExpanded, setFtpExpanded] = useState(false);
+  const [ftpStatus, setFtpStatus] = useState("idle");  // idle | scanning | fetching | error
+  const [ftpFiles, setFtpFiles] = useState(null);      // null = not yet scanned
+  const [ftpError, setFtpError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -158,13 +163,14 @@ useEffect(() => {
   async function loadData() {
     setLoading(true);
     try {
-      const [inv, hist, pos, ord, cats, fcSaved] = await Promise.all([
+      const [inv, hist, pos, ord, cats, fcSaved, ftpSaved] = await Promise.all([
         dbGet("inventory"),
         dbGet("salesHistory"),
         dbGet("purchaseOrders"),
         dbGet("orders"),
         dbGet("categories"),
         dbGet("fcSettings"),
+        dbGet("ftpSettings"),
       ]);
       setInventory(inv || SAMPLE_SKUS);
       setSalesHistory(hist || SAMPLE_HISTORY);
@@ -177,6 +183,7 @@ useEffect(() => {
         if (fcSaved.fcWeeks)       setFcWeeks(fcSaved.fcWeeks);
         if (fcSaved.fcSeasonality) setFcSeasonality(fcSaved.fcSeasonality);
       }
+      if (ftpSaved) setFtpSettings({ host:ftpSaved.host||"", port:ftpSaved.port||"21", user:ftpSaved.user||"", password:ftpSaved.password||"", path:ftpSaved.path||"/" });
       if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
     } catch {
       setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
@@ -191,6 +198,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
   const saveOrders = async (d) => { try { await dbSet("orders", d); } catch {} };
   const saveCats       = async (d) => { try { await dbSet("categories", d); } catch {} };
   const saveFcSettings = async (d) => { try { await dbSet("fcSettings", d); } catch {} };
+  const saveFtpCfg    = async (d) => { try { await dbSet("ftpSettings", d); } catch {} };
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -322,6 +330,39 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     setUploadPreview(null);
     setUploadFeedback(null);
   }
+  async function ftpScan() {
+    setFtpStatus("scanning"); setFtpError(null); setFtpFiles(null);
+    try {
+      const res = await fetch("/api/ftp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-password": storedPassword.current },
+        body: JSON.stringify({ action: "list", ...ftpSettings }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setFtpError(json.error || "Scan failed"); setFtpStatus("error"); return; }
+      setFtpFiles(json.files || []); setFtpStatus("idle");
+    } catch (e) { setFtpError(e.message); setFtpStatus("error"); }
+  }
+
+  async function ftpImport(filename) {
+    setFtpStatus("fetching"); setFtpError(null);
+    try {
+      const res = await fetch("/api/ftp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-password": storedPassword.current },
+        body: JSON.stringify({ action: "fetch", ...ftpSettings, filename }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setFtpError(json.error || "Fetch failed"); setFtpStatus("error"); return; }
+      const file = new File([json.content], filename, { type: "text/csv" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileRef.current.files = dt.files;
+      parseOrderCSV({ target: fileRef.current });
+      setFtpStatus("idle");
+    } catch (e) { setFtpError(e.message); setFtpStatus("error"); }
+  }
+
   // ── END ORDER CSV UPLOAD ──────────────────────────────────────────────────
 
   // ── INVENTORY CSV IMPORT ──────────────────────────────────────────────────
@@ -1586,7 +1627,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               </div>
 
               {/* STEP 1 — Drop */}
-              {uploadStep==="idle" && <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18}}>
+              {uploadStep==="idle" && <><div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18}}>
                 <div style={s.card}>
                   <div style={s.secTitle}>Drop Your Order Export</div>
                   <div
@@ -1647,7 +1688,85 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     ))}
                   </div>}
                 </div>
-              </div>}
+              </div>
+
+              {/* FTP Import */}
+              <div style={{...s.card,marginTop:18}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",userSelect:"none"}} onClick={()=>setFtpExpanded(v=>!v)}>
+                  <div>
+                    <div style={s.secTitle}>FTP Import</div>
+                    <div style={{fontSize:12,color:C.dim,marginTop:2}}>Pull CSV order files directly from an FTP server</div>
+                  </div>
+                  <div style={{fontSize:20,color:C.dim,lineHeight:1}}>{ftpExpanded?"▲":"▼"}</div>
+                </div>
+
+                {ftpExpanded && <div style={{marginTop:18}}>
+                  {/* Connection fields */}
+                  <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:10,marginBottom:10}}>
+                    <div>
+                      <div style={s.lbl}>Host</div>
+                      <input style={s.inpFull} value={ftpSettings.host} onChange={e=>setFtpSettings(p=>({...p,host:e.target.value}))} placeholder="ftp.example.com" />
+                    </div>
+                    <div>
+                      <div style={s.lbl}>Port</div>
+                      <input style={s.inpFull} type="number" value={ftpSettings.port} onChange={e=>setFtpSettings(p=>({...p,port:e.target.value}))} placeholder="21" />
+                    </div>
+                    <div>
+                      <div style={s.lbl}>Username</div>
+                      <input style={s.inpFull} value={ftpSettings.user} onChange={e=>setFtpSettings(p=>({...p,user:e.target.value}))} placeholder="anonymous" />
+                    </div>
+                    <div>
+                      <div style={s.lbl}>Password</div>
+                      <input style={s.inpFull} type="password" value={ftpSettings.password} onChange={e=>setFtpSettings(p=>({...p,password:e.target.value}))} placeholder="••••••" />
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:10,marginBottom:16,alignItems:"flex-end"}}>
+                    <div>
+                      <div style={s.lbl}>Remote Path</div>
+                      <input style={s.inpFull} value={ftpSettings.path} onChange={e=>setFtpSettings(p=>({...p,path:e.target.value}))} placeholder="/exports/orders" />
+                    </div>
+                    <button style={s.btn("secondary")} onClick={()=>saveFtpCfg(ftpSettings)}>Save Settings</button>
+                    <button
+                      style={{...s.btn("primary"),minWidth:130,opacity:(ftpStatus==="scanning"||!ftpSettings.host)?0.5:1}}
+                      disabled={ftpStatus==="scanning"||!ftpSettings.host}
+                      onClick={ftpScan}
+                    >{ftpStatus==="scanning"?"Scanning…":"Scan for CSVs"}</button>
+                  </div>
+
+                  {ftpError && <div style={{padding:"10px 14px",borderRadius:8,background:C.dangerBg,border:`1px solid ${C.dangerBorder}`,color:C.red,fontSize:13,fontWeight:600,marginBottom:14}}>✕ {ftpError}</div>}
+
+                  {ftpFiles === null && ftpStatus==="idle" && (
+                    <div style={{fontSize:13,color:C.muted,textAlign:"center",padding:"18px 0"}}>Enter your FTP connection details above and click Scan for CSVs.</div>
+                  )}
+                  {ftpFiles !== null && ftpFiles.length === 0 && (
+                    <div style={{fontSize:13,color:C.muted,textAlign:"center",padding:"18px 0"}}>No CSV files found in <span style={{fontFamily:"monospace",color:C.btnText}}>{ftpSettings.path}</span>.</div>
+                  )}
+                  {ftpFiles !== null && ftpFiles.length > 0 && (
+                    <div>
+                      <div style={{fontSize:11,color:C.dim,marginBottom:10}}>{ftpFiles.length} CSV file{ftpFiles.length!==1?"s":""} found in <span style={{fontFamily:"monospace"}}>{ftpSettings.path}</span></div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {ftpFiles.map(f=>(
+                          <div key={f.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:8,background:C.surfaceDeep,border:`1px solid ${C.border}`}}>
+                            <div>
+                              <div style={{fontSize:13,fontWeight:600,fontFamily:"monospace",color:C.btnText}}>{f.name}</div>
+                              <div style={{fontSize:11,color:C.dim,marginTop:2}}>
+                                {f.size != null ? `${(f.size/1024).toFixed(1)} KB` : ""}
+                                {f.modifiedAt ? ` · ${new Date(f.modifiedAt).toLocaleDateString()}` : ""}
+                              </div>
+                            </div>
+                            <button
+                              style={{...s.btn("primary"),fontSize:12,padding:"6px 16px",opacity:ftpStatus==="fetching"?0.5:1}}
+                              disabled={ftpStatus==="fetching"}
+                              onClick={()=>ftpImport(f.name)}
+                            >{ftpStatus==="fetching"?"Loading…":"Import"}</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>}
+              </div>
+              </>}
 
               {/* STEP 2 — Preview */}
               {uploadStep==="preview" && uploadPreview && (()=>{
