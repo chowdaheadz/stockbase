@@ -122,22 +122,23 @@ export default function App() {
   const storedPassword = useRef(sessionStorage.getItem("sb_pw") || "");
 
   // ── API HELPERS ───────────────────────────────────────────────────────────
-  async function dbGet(key) {
-    const res = await fetch(`/api/data?key=${key}`, {
-      headers: { "x-app-password": storedPassword.current }
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "x-app-password": storedPassword.current,
+        ...options.headers,
+      },
     });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.value;
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return res.json();
   }
 
-  async function dbSet(key, value) {
-    await fetch(`/api/data?key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-app-password": storedPassword.current },
-      body: JSON.stringify({ value })
-    });
-  }
+  const apiGet    = (path)        => apiFetch(path);
+  const apiPost   = (path, body)  => apiFetch(path, { method: "POST",   body: JSON.stringify(body) });
+  const apiPatch  = (path, body)  => apiFetch(path, { method: "PATCH",  body: JSON.stringify(body) });
+  const apiDelete = (path)        => apiFetch(path, { method: "DELETE" });
 
   async function checkPassword(pw) {
     const res = await fetch("/api/data?key=ping", {
@@ -159,16 +160,18 @@ useEffect(() => {
     setLoading(true);
     try {
       const [inv, hist, pos, ord] = await Promise.all([
-        dbGet("inventory"),
-        dbGet("salesHistory"),
-        dbGet("purchaseOrders"),
-        dbGet("orders"),
+        apiGet("/api/inventory"),
+        apiGet("/api/sales-history"),
+        apiGet("/api/purchase-orders"),
+        apiGet("/api/orders"),
       ]);
-      setInventory(inv || SAMPLE_SKUS);
-      setSalesHistory(hist || SAMPLE_HISTORY);
+      const invData = inv?.length ? inv : SAMPLE_SKUS;
+      const histData = hist?.length ? hist : SAMPLE_HISTORY;
+      setInventory(invData);
+      setSalesHistory(histData);
       setPurchaseOrders(pos || []);
       setOrders(ord || []);
-      if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
+      if (invData.length) setSelectedSku(invData[0].sku);
     } catch {
       setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
       setSelectedSku(SAMPLE_SKUS[0].sku);
@@ -176,10 +179,12 @@ useEffect(() => {
     setLoading(false);
   }
 
-const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} };
-  const saveHist   = async (d) => { try { await dbSet("salesHistory", d); } catch {} };
-  const savePOs    = async (d) => { try { await dbSet("purchaseOrders", d); } catch {} };
-  const saveOrders = async (d) => { try { await dbSet("orders", d); } catch {} };
+  // Persist inventory: upsert all items (individual rows, not a blob)
+  const saveInv = async (d) => { try { await apiPatch("/api/inventory", d); } catch {} };
+  // Append only new history entries (upserts by week+sku)
+  const appendHistory = async (entries) => { try { await apiPost("/api/sales-history", entries); } catch {} };
+  // Append only new order lines (insert-ignore duplicates)
+  const appendOrders = async (lines) => { try { await apiPost("/api/orders", lines); } catch {} };
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -301,7 +306,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     const newOrders = [...orders, ...validLines];
 
     setInventory(newInv); setSalesHistory(newHist); setOrders(newOrders);
-    saveInv(newInv); saveHist(newHist); saveOrders(newOrders);
+    saveInv(newInv); appendHistory(newHistEntries); appendOrders(validLines);
     setUploadStep("committed");
     setUploadFeedback({ type:"success", msg:`Committed: ${validLines.length} line items across ${Object.keys(uploadPreview.orderMap).length} orders. Inventory updated.` });
   }
@@ -318,13 +323,17 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     const u = inventory.map(i => i.id === item.id ? { ...i, currentStock: parseInt(editValues.currentStock)||0, reorderPoint: parseInt(editValues.reorderPoint)||0, reorderQty: parseInt(editValues.reorderQty)||0 } : i);
     setInventory(u); saveInv(u); setEditingId(null);
   }
-  function addSKU() {
+  async function addSKU() {
     if (!addForm) { setAddForm({ sku:"", name:"", category:"", currentStock:"", reorderPoint:"", reorderQty:"" }); return; }
     if (!addForm.sku || !addForm.name) return;
-    const u = [...inventory, { id: Date.now().toString(), sku: addForm.sku.toUpperCase(), name: addForm.name, category: addForm.category||"Uncategorized", currentStock: parseInt(addForm.currentStock)||0, reorderPoint: parseInt(addForm.reorderPoint)||0, reorderQty: parseInt(addForm.reorderQty)||0 }];
-    setInventory(u); saveInv(u); setAddForm(null);
+    const newItem = { id: Date.now().toString(), sku: addForm.sku.toUpperCase(), name: addForm.name, category: addForm.category||"Uncategorized", currentStock: parseInt(addForm.currentStock)||0, reorderPoint: parseInt(addForm.reorderPoint)||0, reorderQty: parseInt(addForm.reorderQty)||0, avgCost: 0 };
+    setInventory(u => [...u, newItem]); setAddForm(null);
+    try { await apiPost("/api/inventory", newItem); } catch {}
   }
-  function deleteSKU(id) { const u = inventory.filter(i => i.id !== id); setInventory(u); saveInv(u); }
+  async function deleteSKU(id) {
+    setInventory(u => u.filter(i => i.id !== id));
+    try { await apiDelete(`/api/inventory?id=${id}`); } catch {}
+  }
 
   function initNewPO() {
     setPoForm({ poNumber: generatePONumber(purchaseOrders), supplier:"", status:"draft", createdAt: new Date().toISOString().slice(0,10), notes:"", lines:[{ skuId:"", qty:"", costPerUnit:"" }] });
@@ -338,20 +347,32 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       return { ...f, lines };
     });
   }
-  function savePO() {
+  async function savePO() {
     const validLines = poForm.lines.filter(l => l.skuId && l.qty);
     if (!poForm.supplier || !validLines.length) return;
     const po = { ...poForm, id: Date.now().toString(), lines: validLines.map(l => { const item = inventory.find(i => i.id === l.skuId); return { skuId: l.skuId, sku: item?.sku||"", name: item?.name||"", qty: parseInt(l.qty)||0, costPerUnit: parseFloat(l.costPerUnit)||0, received: 0 }; }) };
-    const u = [...purchaseOrders, po]; setPurchaseOrders(u); savePOs(u); setActivePO(po); setPoView("detail");
+    try {
+      const newPOs = await apiPost("/api/purchase-orders", po);
+      setPurchaseOrders(newPOs);
+    } catch { setPurchaseOrders(prev => [...prev, po]); }
+    setActivePO(po); setPoView("detail");
   }
-  function updatePOStatus(po, status) {
-    const u = purchaseOrders.map(p => p.id === po.id ? { ...p, status } : p);
-    setPurchaseOrders(u); savePOs(u); setActivePO(prev => ({ ...prev, status }));
+  async function updatePOStatus(po, status) {
+    const optimistic = purchaseOrders.map(p => p.id === po.id ? { ...p, status } : p);
+    setPurchaseOrders(optimistic); setActivePO(prev => ({ ...prev, status }));
+    try {
+      const newPOs = await apiPatch(`/api/purchase-orders?id=${po.id}`, { status });
+      setPurchaseOrders(newPOs);
+    } catch {}
   }
-  function deletePO(id) { const u = purchaseOrders.filter(p => p.id !== id); setPurchaseOrders(u); savePOs(u); setPoView("list"); setActivePO(null); }
+  async function deletePO(id) {
+    setPoView("list"); setActivePO(null);
+    setPurchaseOrders(prev => prev.filter(p => p.id !== id));
+    try { await apiDelete(`/api/purchase-orders?id=${id}`); } catch {}
+  }
 
   function openReceive(po, idx) { setReceiveModal({ po, lineIdx: idx, qty: po.lines[idx].qty - po.lines[idx].received }); }
-  function confirmReceive() {
+  async function confirmReceive() {
     if (!receiveModal) return;
     const { po, lineIdx, qty } = receiveModal;
     const qtyNum = parseInt(qty)||0; if (qtyNum <= 0) return;
@@ -360,7 +381,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     const newStatus = rec === 0 ? po.status : rec >= tot ? "received" : "partial";
     const updatedPO = { ...po, lines: updatedLines, status: newStatus };
     const updPOs = purchaseOrders.map(p => p.id === po.id ? updatedPO : p);
-    setPurchaseOrders(updPOs); savePOs(updPOs); setActivePO(updatedPO);
+    setPurchaseOrders(updPOs); setActivePO(updatedPO);
     const line = po.lines[lineIdx];
     const updInv = inventory.map(item => {
       if (item.id !== line.skuId) return item;
@@ -373,7 +394,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
         : line.costPerUnit;
       return { ...item, currentStock: newStock, avgCost: +newAvgCost.toFixed(4) };
     });
-    setInventory(updInv); saveInv(updInv); setReceiveModal(null);
+    setInventory(updInv); setReceiveModal(null);
+    // Persist both changes: PO (with updated lines+status) and inventory
+    try {
+      await Promise.all([
+        apiPatch(`/api/purchase-orders?id=${po.id}`, { status: updatedPO.status, lines: updatedPO.lines }),
+        saveInv(updInv),
+      ]);
+    } catch {}
   }
 
   // ── FORECAST ENGINE ───────────────────────────────────────────────────────
