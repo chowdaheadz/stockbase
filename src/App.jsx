@@ -213,7 +213,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       const header = rawLines[0].toLowerCase().replace(/[_\s"]/g, "");
       const hasOrderCol = header.includes("order");
       const hasSkuCol   = header.includes("sku");
-      const hasQtyCol   = header.includes("qty") || header.includes("quantity");
+      const hasQtyCol   = header.includes("qty") || header.includes("quan");
       if (!hasOrderCol || !hasSkuCol || !hasQtyCol) {
         setUploadFeedback({ type:"error", msg:`CSV must have Order#, SKU, and Quantity columns. Found: "${rawLines[0]}"` });
         return;
@@ -223,7 +223,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       const cols = rawLines[0].split(",").map(c => c.trim().replace(/"/g,"").toLowerCase().replace(/[_\s]/g,""));
       const orderIdx = cols.findIndex(c => c.includes("order") && !c.includes("date"));
       const skuIdx   = cols.findIndex(c => c.includes("sku"));
-      const qtyIdx   = cols.findIndex(c => c.includes("qty") || c.includes("quantity"));
+      const qtyIdx   = cols.findIndex(c => c.includes("qty") || c.includes("quan"));
       const dateIdx  = cols.findIndex(c => c.includes("date") || c.includes("orderdate") || c.includes("order_date"));
 
     const importedAt = new Date().toISOString().slice(0, 10);
