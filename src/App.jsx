@@ -119,6 +119,15 @@ export default function App() {
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
+  // Cycle count state
+  const [ccView, setCcView] = useState("setup");       // setup | counting | results
+  const [ccItems, setCcItems] = useState([]);           // { ...item, counted: "" }
+  const [ccDate, setCcDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [ccSetupSel, setCcSetupSel] = useState({});    // { id: true }
+  const [ccSetupSearch, setCcSetupSearch] = useState("");
+  const [ccSetupCat, setCcSetupCat] = useState("all");
+  const [ccCountSearch, setCcCountSearch] = useState("");
+  const [ccCountCat, setCcCountCat] = useState("all");
   // Admin state
   const [editingCatId, setEditingCatId] = useState(null);
   const [editCatName, setEditCatName] = useState("");
@@ -370,6 +379,91 @@ useEffect(() => {
     setInventory(u => [...u, newItem]); setAddForm(null);
     try { await apiPost("/api/inventory", newItem); } catch {}
   }
+  // ── CYCLE COUNT HELPERS ───────────────────────────────────────────────────
+  function startCycleCount() {
+    const ids = Object.keys(ccSetupSel).filter(id => ccSetupSel[id]);
+    if (!ids.length) return;
+    setCcItems(inventory.filter(i => ids.includes(i.id)).map(i => ({ ...i, counted: "" })));
+    setCcCountSearch(""); setCcCountCat("all");
+    setCcView("counting");
+  }
+
+  function printCycleSheet() {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    const items = ccItems;
+    win.document.write(`<!DOCTYPE html><html><head><title>Cycle Count — ${ccDate}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:28px 32px;color:#000}
+      .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+      .logo{font-family:monospace;font-size:22px;font-weight:700;color:#990000;letter-spacing:2px}
+      .title{font-size:16px;font-weight:700;margin-bottom:2px}
+      .sub{font-size:11px;color:#555;margin-bottom:22px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th{background:#111;color:#fff;padding:8px 10px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1.2px}
+      td{padding:9px 10px;border-bottom:1px solid #ddd;vertical-align:middle}
+      tr:nth-child(even) td{background:#f9f9f9}
+      .sku{font-family:monospace;font-size:10px;color:#444}
+      .count-box{display:inline-block;border:1.5px solid #333;width:72px;height:28px;border-radius:3px}
+      .line-box{display:inline-block;width:110px;border-bottom:1px solid #bbb;height:20px}
+      .sig{margin-top:28px;font-size:11px;color:#555;display:flex;gap:60px}
+      .sig-line{display:inline-block;border-bottom:1px solid #999;width:200px;margin-left:8px}
+      @media print{@page{margin:18mm}body{padding:0}}
+    </style></head><body>
+    <div class="hdr">
+      <div><div class="logo">⬡ STOCKBASE</div><div class="title">Cycle Count Sheet</div></div>
+      <div style="text-align:right;font-size:11px;color:#555">
+        <div><strong>Date:</strong> ${ccDate}</div>
+        <div><strong>Total SKUs:</strong> ${items.length}</div>
+        <div><strong>Printed:</strong> ${new Date().toLocaleString()}</div>
+      </div>
+    </div>
+    <div class="sub">Fill in the <strong>Counted</strong> column and <strong>Location</strong> column for each item. Leave <strong>Notes</strong> for any discrepancies or observations.</div>
+    <table>
+      <thead><tr>
+        <th style="width:30px">#</th>
+        <th style="width:100px">SKU</th>
+        <th>Product Name</th>
+        <th style="width:110px">Category</th>
+        <th style="width:100px">Location</th>
+        <th style="width:80px;text-align:center">System Qty</th>
+        <th style="width:90px;text-align:center">Counted</th>
+        <th style="width:130px">Notes</th>
+      </tr></thead>
+      <tbody>
+        ${items.map((item, i) => `<tr>
+          <td style="color:#aaa;font-size:10px">${i + 1}</td>
+          <td class="sku">${item.sku}</td>
+          <td style="font-weight:600">${item.name}</td>
+          <td style="font-size:11px;color:#555">${item.category}</td>
+          <td><span class="count-box"></span></td>
+          <td style="text-align:center;font-family:monospace;font-weight:700">${item.currentStock}</td>
+          <td style="text-align:center"><span class="count-box"></span></td>
+          <td><span class="line-box"></span></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="sig">
+      <span>Counted by: <span class="sig-line"></span></span>
+      <span>Verified by: <span class="sig-line"></span></span>
+    </div>
+    </body></html>`);
+    win.document.close();
+    win.print();
+  }
+
+  function updateInventoryFromCount() {
+    const changed = ccItems.filter(i => i.counted !== "" && parseInt(i.counted) !== i.currentStock);
+    if (!changed.length) return;
+    setInventory(prev => prev.map(inv => {
+      const hit = changed.find(d => d.id === inv.id);
+      return hit ? { ...inv, currentStock: parseInt(hit.counted) } : inv;
+    }));
+    changed.forEach(d => {
+      const base = inventory.find(i => i.id === d.id);
+      if (base) apiPost("/api/inventory", { ...base, currentStock: parseInt(d.counted) }).catch(() => {});
+    });
+  }
+
   async function deleteSKU(id) {
     setInventory(u => u.filter(i => i.id !== id));
     try { await apiDelete(`/api/inventory?id=${id}`); } catch {}
@@ -745,7 +839,7 @@ useEffect(() => {
       <header style={s.header}>
         <div style={s.logo}>⬡ STOCKBASE</div>
         <nav style={{ display:"flex", gap:4 }}>
-          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["admin","Admin"]].map(([id,label]) => (
+          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["cyclecount","Cycle Count"],["admin","Admin"]].map(([id,label]) => (
             <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
           ))}
         </nav>
@@ -2069,6 +2163,287 @@ useEffect(() => {
             </div>
           </div>
         </>}
+
+        {/* ── CYCLE COUNT ── */}
+        {tab==="cyclecount" && (()=>{
+          // ── SETUP VIEW ──────────────────────────────────────────────────
+          if (ccView === "setup") {
+            const setupItems = inventory
+              .filter(i => ccSetupCat === "all" || i.category === ccSetupCat)
+              .filter(i => !ccSetupSearch || i.sku.toLowerCase().includes(ccSetupSearch.toLowerCase()) || i.name.toLowerCase().includes(ccSetupSearch.toLowerCase()));
+            const allSel = setupItems.length > 0 && setupItems.every(i => ccSetupSel[i.id]);
+            const selCount = Object.values(ccSetupSel).filter(Boolean).length;
+            return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+                  <div>
+                    <div style={{fontSize:22,fontWeight:800,color:C.text}}>Cycle Count</div>
+                    <div style={{fontSize:12,color:C.dim,marginTop:2}}>Select the SKUs you want to count, then start counting.</div>
+                  </div>
+                  <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={s.lbl}>Count Date</div>
+                      <input type="date" value={ccDate} onChange={e=>setCcDate(e.target.value)} style={{...s.inp,padding:"6px 10px"}} />
+                    </div>
+                    <button
+                      style={{...s.btn("primary"),opacity:selCount?1:0.45,cursor:selCount?"pointer":"not-allowed",marginTop:16}}
+                      onClick={startCycleCount}
+                      disabled={!selCount}
+                    >Start Counting ({selCount}) →</button>
+                  </div>
+                </div>
+                <div style={s.card}>
+                  <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+                    <div style={s.secTitle}>SELECT SKUs — {selCount} selected</div>
+                    <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <input placeholder="Search..." value={ccSetupSearch} onChange={e=>setCcSetupSearch(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                      <select value={ccSetupCat} onChange={e=>setCcSetupCat(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
+                        <option value="all">All Categories</option>
+                        {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <button style={s.btn("secondary")} onClick={()=>{
+                        const next={...ccSetupSel};
+                        if(allSel) setupItems.forEach(i=>{ next[i.id]=false; }); else setupItems.forEach(i=>{ next[i.id]=true; });
+                        setCcSetupSel(next);
+                      }}>{allSel?"Deselect All":"Select All"}</button>
+                      <button style={s.btn("secondary")} onClick={()=>setCcSetupSel({})}>Clear All</button>
+                    </div>
+                  </div>
+                  <div style={{overflowX:"auto"}}>
+                    <table style={s.table}>
+                      <thead><tr>
+                        <th style={{...s.th,width:36}}></th>
+                        <th style={s.th}>SKU</th>
+                        <th style={s.th}>Product</th>
+                        <th style={s.th}>Category</th>
+                        <th style={s.th}>System Qty</th>
+                        <th style={s.th}>Status</th>
+                      </tr></thead>
+                      <tbody>
+                        {setupItems.map(item => {
+                          const st = statusFor(item);
+                          return (
+                            <tr key={item.id} style={{cursor:"pointer",background:ccSetupSel[item.id]?"#99000008":"transparent"}}
+                                onClick={()=>setCcSetupSel(p=>({...p,[item.id]:!p[item.id]}))}>
+                              <td style={s.td}>
+                                <input type="checkbox" checked={!!ccSetupSel[item.id]} readOnly
+                                  style={{width:15,height:15,accentColor:C.amber,cursor:"pointer"}} />
+                              </td>
+                              <td style={s.td}><span style={{fontFamily:"monospace",fontSize:11,color:C.dim}}>{item.sku}</span></td>
+                              <td style={s.td}><span style={{fontWeight:600}}>{item.name}</span></td>
+                              <td style={s.td}><span style={{fontSize:11,color:C.dim}}>{item.category}</span></td>
+                              <td style={s.td}><span style={{fontFamily:"monospace",fontWeight:700}}>{item.currentStock}</span></td>
+                              <td style={s.td}><span style={s.badge(st)}><span style={{width:5,height:5,borderRadius:"50%",background:STATUS_STYLES[st].dot,display:"inline-block"}} />{STATUS_STYLES[st].label}</span></td>
+                            </tr>
+                          );
+                        })}
+                        {setupItems.length === 0 && <tr><td colSpan={6} style={{...s.td,textAlign:"center",color:C.dim,padding:32}}>No SKUs match your filters</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── COUNTING VIEW ────────────────────────────────────────────────
+          if (ccView === "counting") {
+            const countRows = ccItems
+              .filter(i => ccCountCat === "all" || i.category === ccCountCat)
+              .filter(i => !ccCountSearch || i.sku.toLowerCase().includes(ccCountSearch.toLowerCase()) || i.name.toLowerCase().includes(ccCountSearch.toLowerCase()));
+            const countedCount = ccItems.filter(i => i.counted !== "").length;
+            const countedCategories = [...new Set(ccItems.map(i => i.category))];
+            return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+                  <div>
+                    <div style={{fontSize:22,fontWeight:800,color:C.text}}>Counting — {ccDate}</div>
+                    <div style={{fontSize:12,color:C.dim,marginTop:2}}>{countedCount} of {ccItems.length} SKUs entered · {ccItems.length - countedCount} remaining</div>
+                  </div>
+                  <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button style={s.btn("secondary")} onClick={printCycleSheet}>🖨 Print Sheet</button>
+                    <button style={{...s.btn("secondary")}} onClick={()=>{ setCcView("setup"); }}>← Back</button>
+                    <button style={s.btn("primary")} onClick={()=>setCcView("results")}>View Results →</button>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div style={{background:C.border,borderRadius:4,height:6,marginBottom:20,overflow:"hidden"}}>
+                  <div style={{height:"100%",background:C.amber,width:`${ccItems.length?countedCount/ccItems.length*100:0}%`,transition:"width 0.3s",borderRadius:4}} />
+                </div>
+
+                <div style={s.card}>
+                  <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+                    <div style={s.secTitle}>{ccItems.length} SKUs TO COUNT</div>
+                    <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <input placeholder="Search..." value={ccCountSearch} onChange={e=>setCcCountSearch(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                      <select value={ccCountCat} onChange={e=>setCcCountCat(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
+                        <option value="all">All Categories</option>
+                        {countedCategories.map(c=><option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{overflowX:"auto"}}>
+                    <table style={s.table}>
+                      <thead><tr>
+                        <th style={s.th}>SKU</th>
+                        <th style={s.th}>Product</th>
+                        <th style={s.th}>Category</th>
+                        <th style={{...s.th,textAlign:"center"}}>System Qty</th>
+                        <th style={{...s.th,textAlign:"center"}}>Counted</th>
+                        <th style={{...s.th,textAlign:"center"}}>Variance</th>
+                      </tr></thead>
+                      <tbody>
+                        {countRows.map(item => {
+                          const counted = item.counted;
+                          const parsedCounted = counted !== "" ? parseInt(counted) : null;
+                          const variance = parsedCounted !== null ? parsedCounted - item.currentStock : null;
+                          const varColor = variance === null ? C.dim : variance === 0 ? C.green : variance > 0 ? C.blue : C.red;
+                          return (
+                            <tr key={item.id} style={{background: counted !== "" ? (variance === 0 ? "#dcfce708" : variance !== null && variance < 0 ? "#fee2e208" : "#dbeafe08") : "transparent"}}>
+                              <td style={s.td}><span style={{fontFamily:"monospace",fontSize:11,color:C.dim}}>{item.sku}</span></td>
+                              <td style={s.td}><span style={{fontWeight:600}}>{item.name}</span></td>
+                              <td style={s.td}><span style={{fontSize:11,color:C.dim}}>{item.category}</span></td>
+                              <td style={{...s.td,textAlign:"center"}}>
+                                <span style={{fontFamily:"monospace",fontWeight:700,color:C.dim}}>{item.currentStock}</span>
+                              </td>
+                              <td style={{...s.td,textAlign:"center"}}>
+                                <input
+                                  type="number" min="0"
+                                  value={counted}
+                                  placeholder="—"
+                                  onChange={e => setCcItems(prev => prev.map(p => p.id === item.id ? {...p, counted: e.target.value} : p))}
+                                  style={{...s.inp,width:80,padding:"6px 10px",textAlign:"center",fontWeight:700,color:C.purple,border:`1px solid ${C.purple}40`,outline:"none"}}
+                                />
+                              </td>
+                              <td style={{...s.td,textAlign:"center"}}>
+                                {variance !== null
+                                  ? <span style={{fontFamily:"monospace",fontWeight:700,color:varColor}}>
+                                      {variance === 0 ? "✓ 0" : (variance > 0 ? "+" : "") + variance}
+                                    </span>
+                                  : <span style={{color:C.muted,fontSize:11}}>—</span>
+                                }
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {countRows.length === 0 && <tr><td colSpan={6} style={{...s.td,textAlign:"center",color:C.dim,padding:32}}>No SKUs match your filters</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── RESULTS VIEW ─────────────────────────────────────────────────
+          if (ccView === "results") {
+            const counted = ccItems.filter(i => i.counted !== "");
+            const discrepancies = counted.filter(i => parseInt(i.counted) !== i.currentStock);
+            const matches = counted.filter(i => parseInt(i.counted) === i.currentStock);
+            const uncounted = ccItems.filter(i => i.counted === "");
+            const totalVariance = discrepancies.reduce((s,i) => s + (parseInt(i.counted) - i.currentStock), 0);
+            return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+                  <div>
+                    <div style={{fontSize:22,fontWeight:800,color:C.text}}>Count Results — {ccDate}</div>
+                    <div style={{fontSize:12,color:C.dim,marginTop:2}}>{counted.length} of {ccItems.length} SKUs counted</div>
+                  </div>
+                  <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button style={s.btn("secondary")} onClick={printCycleSheet}>🖨 Print Sheet</button>
+                    <button style={s.btn("secondary")} onClick={()=>setCcView("counting")}>← Back to Counting</button>
+                    <button style={s.btn("secondary")} onClick={()=>{ setCcView("setup"); setCcItems([]); setCcSetupSel({}); }}>New Count</button>
+                    {discrepancies.length > 0 && (
+                      <button style={s.btn("primary")} onClick={()=>{ updateInventoryFromCount(); setCcItems(prev=>prev.map(i=>({...i, currentStock: i.counted!==""?parseInt(i.counted):i.currentStock}))); }}>
+                        Apply {discrepancies.length} Adjustment{discrepancies.length!==1?"s":""}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Summary cards */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
+                  {[
+                    ["Counted",counted.length,C.blue],
+                    ["Matches",matches.length,C.green],
+                    ["Discrepancies",discrepancies.length,discrepancies.length>0?C.red:C.green],
+                    ["Net Variance",`${totalVariance>0?"+":""}${totalVariance}`,totalVariance===0?C.green:totalVariance>0?C.blue:C.red],
+                  ].map(([label,val,color])=>(
+                    <div key={label} style={{...s.statCard(color),padding:"16px 20px"}}>
+                      <div style={s.statL}>{label}</div>
+                      <div style={{...s.statV(color),fontSize:28}}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {discrepancies.length > 0 && (
+                  <div style={{...s.card,marginBottom:14}}>
+                    <div style={{...s.secTitle,marginBottom:14,color:C.red}}>DISCREPANCIES — {discrepancies.length} items</div>
+                    <div style={{overflowX:"auto"}}>
+                      <table style={s.table}>
+                        <thead><tr>
+                          <th style={s.th}>SKU</th><th style={s.th}>Product</th><th style={s.th}>Category</th>
+                          <th style={{...s.th,textAlign:"center"}}>System Qty</th>
+                          <th style={{...s.th,textAlign:"center"}}>Counted</th>
+                          <th style={{...s.th,textAlign:"center"}}>Variance</th>
+                          <th style={{...s.th,textAlign:"center"}}>Direction</th>
+                        </tr></thead>
+                        <tbody>
+                          {discrepancies.map(item => {
+                            const v = parseInt(item.counted) - item.currentStock;
+                            return (
+                              <tr key={item.id}>
+                                <td style={s.td}><span style={{fontFamily:"monospace",fontSize:11,color:C.dim}}>{item.sku}</span></td>
+                                <td style={s.td}><span style={{fontWeight:600}}>{item.name}</span></td>
+                                <td style={s.td}><span style={{fontSize:11,color:C.dim}}>{item.category}</span></td>
+                                <td style={{...s.td,textAlign:"center",fontFamily:"monospace"}}>{item.currentStock}</td>
+                                <td style={{...s.td,textAlign:"center",fontFamily:"monospace",fontWeight:700}}>{item.counted}</td>
+                                <td style={{...s.td,textAlign:"center",fontFamily:"monospace",fontWeight:700,color:v>0?C.blue:C.red}}>{v>0?"+":""}{v}</td>
+                                <td style={{...s.td,textAlign:"center"}}>
+                                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:4,background:v>0?"#dbeafe":"#fee2e2",color:v>0?C.blue:C.red}}>
+                                    {v>0?"OVER":"SHORT"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {matches.length > 0 && (
+                  <div style={s.card}>
+                    <div style={{...s.secTitle,marginBottom:14,color:C.green}}>MATCHES — {matches.length} items confirmed accurate</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                      {matches.map(item=>(
+                        <div key={item.id} style={{background:"#dcfce7",border:"1px solid #bbf7d0",borderRadius:7,padding:"7px 12px"}}>
+                          <div style={{fontFamily:"monospace",fontSize:10,color:C.dim}}>{item.sku}</div>
+                          <div style={{fontSize:12,fontWeight:600,color:C.text}}>{item.name}</div>
+                          <div style={{fontSize:11,fontFamily:"monospace",color:C.green,fontWeight:700}}>✓ {item.currentStock} units</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {uncounted.length > 0 && (
+                  <div style={{...s.card,marginTop:14,border:`1px solid ${C.amber}30`}}>
+                    <div style={{...s.secTitle,marginBottom:10,color:C.orange}}>NOT COUNTED — {uncounted.length} items skipped</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {uncounted.map(item=>(
+                        <span key={item.id} style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:5,padding:"4px 10px",fontSize:11,fontFamily:"monospace",color:C.orange}}>{item.sku}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {tab==="admin" && <div style={{maxWidth:700}}>
           <div style={{fontSize:20,fontWeight:800,marginBottom:24,color:C.text}}>Admin Settings</div>
