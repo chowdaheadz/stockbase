@@ -41,7 +41,7 @@ const STATUS_STYLES = {
 };
 
 const PO_STATUS = {
-  draft:    { label: "DRAFT",            bg: "#1e2d45", color: "#94a3b8" },
+  draft:    { label: "DRAFT",            bg: "#0c1880", color: "#94a3b8" },
   sent:     { label: "SENT TO SUPPLIER", bg: "#1e3a5f", color: "#60a5fa" },
   partial:  { label: "PARTIAL",          bg: "#451a03", color: "#fb923c" },
   received: { label: "RECEIVED",         bg: "#052e16", color: "#4ade80" },
@@ -612,12 +612,12 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
 
   // ── STYLES ────────────────────────────────────────────────────────────────
-  const C = { bg: "#0a0d14", surface: "#0f1420", border: "#1e2d45", muted: "#475569", dim: "#64748b", text: "#e2e8f0", amber: "#f59e0b", blue: "#60a5fa", green: "#4ade80", orange: "#f97316", red: "#ef4444", purple: "#a78bfa" };
+  const C = { bg: "#000435", surface: "#030b50", border: "#0c1880", muted: "#475569", dim: "#64748b", text: "#e2e8f0", amber: "#990000", blue: "#60a5fa", green: "#4ade80", orange: "#f97316", red: "#ef4444", purple: "#a78bfa" };
   const s = {
     app: { background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text },
     header: { background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 32px", display: "flex", alignItems: "center", gap: 24, height: 64, position: "sticky", top: 0, zIndex: 50 },
     logo: { fontFamily: "'Space Mono',monospace", fontSize: 17, fontWeight: 700, color: C.amber, letterSpacing: 1, whiteSpace: "nowrap" },
-    navBtn: (a) => ({ padding: "6px 14px", border: "none", background: a ? "#f59e0b18" : "transparent", color: a ? C.amber : "#94a3b8", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s" }),
+    navBtn: (a) => ({ padding: "6px 14px", border: "none", background: a ? "#99000018" : "transparent", color: a ? C.amber : "#94a3b8", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s" }),
     main: { padding: "28px 32px", maxWidth: 1400, margin: "0 auto" },
     card: { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px" },
     statCard: (a) => ({ background: C.surface, border: `1px solid ${a}30`, borderRadius: 12, padding: "20px 24px", borderLeft: `3px solid ${a}` }),
@@ -627,11 +627,11 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
     secTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.dim, textTransform: "uppercase", marginBottom: 14 },
     table: { width: "100%", borderCollapse: "collapse" },
     th: { padding: "9px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` },
-    td: { padding: "11px 12px", fontSize: 13, borderBottom: `1px solid #0f1e30`, verticalAlign: "middle" },
+    td: { padding: "11px 12px", fontSize: 13, borderBottom: `1px solid #010a3a`, verticalAlign: "middle" },
     inp: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "7px 10px", fontSize: 13, fontFamily: "monospace" },
     inpFull: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
     sel: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
-    btn: (v) => ({ padding: v==="primary"?"10px 18px":"6px 13px", background: v==="primary"?C.amber:v==="danger"?"#450a0a":v==="blue"?"#1e3a5f":C.border, color: v==="primary"?C.bg:v==="danger"?C.red:v==="blue"?C.blue:"#94a3b8", border:"none", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5, transition:"all 0.15s", whiteSpace:"nowrap" }),
+    btn: (v) => ({ padding: v==="primary"?"10px 18px":"6px 13px", background: v==="primary"?C.amber:v==="danger"?"#450a0a":v==="blue"?"#1e3a5f":C.border, color: v==="primary"?"#fff":v==="danger"?C.red:v==="blue"?C.blue:"#94a3b8", border:"none", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5, transition:"all 0.15s", whiteSpace:"nowrap" }),
     badge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 8px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:STATUS_STYLES[st].bg, color:STATUS_STYLES[st].color }),
     poBadge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:PO_STATUS[st]?.bg||C.border, color:PO_STATUS[st]?.color||"#94a3b8" }),
     alertRow: (st) => ({ background:STATUS_STYLES[st].bg+"44", border:`1px solid ${STATUS_STYLES[st].dot}30`, borderRadius:8, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }),
@@ -643,9 +643,9 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
   };
 // Password screen
   if (!authed) return (
-    <div style={{background:"#0a0d14",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
-      <div style={{background:"#0f1420",border:"1px solid #1e2d45",borderRadius:16,padding:"48px 40px",width:360,textAlign:"center"}}>
-        <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#f59e0b",marginBottom:8}}>⬡ STOCKBASE</div>
+    <div style={{background:"#000435",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
+      <div style={{background:"#030b50",border:"1px solid #0c1880",borderRadius:16,padding:"48px 40px",width:360,textAlign:"center"}}>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#990000",marginBottom:8}}>⬡ STOCKBASE</div>
         <div style={{fontSize:13,color:"#64748b",marginBottom:32}}>Enter your team password to continue</div>
         <input
           type="password"
@@ -653,12 +653,12 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           value={passwordInput}
           onChange={e => { setPasswordInput(e.target.value); setPasswordError(false); }}
           onKeyDown={async e => { if (e.key === "Enter") { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } } }}
-          style={{width:"100%",boxSizing:"border-box",background:"#0a0d14",border:`1px solid ${passwordError?"#ef4444":"#1e2d45"}`,color:"#e2e8f0",borderRadius:8,padding:"11px 14px",fontSize:14,fontFamily:"inherit",marginBottom:12,outline:"none"}}
+          style={{width:"100%",boxSizing:"border-box",background:"#000435",border:`1px solid ${passwordError?"#ef4444":"#0c1880"}`,color:"#e2e8f0",borderRadius:8,padding:"11px 14px",fontSize:14,fontFamily:"inherit",marginBottom:12,outline:"none"}}
           autoFocus
         />
         {passwordError && <div style={{color:"#ef4444",fontSize:12,marginBottom:12}}>Incorrect password — try again</div>}
         <button
-          style={{width:"100%",padding:"11px",background:"#f59e0b",color:"#0a0d14",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          style={{width:"100%",padding:"11px",background:"#990000",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
           onClick={async () => { const ok = await checkPassword(passwordInput); if (ok) { storedPassword.current = passwordInput; sessionStorage.setItem("sb_pw", passwordInput); setAuthed(true); loadData(); } else { setPasswordError(true); } }}
         >
           Unlock
@@ -680,7 +680,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
           ))}
         </nav>
         <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {alerts.length > 0 && <div style={{ background:"#450a0a", border:"1px solid #7f1d1d", borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
+          {alerts.length > 0 && <div style={{ background:"#3d0000", border:"1px solid #660000", borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
           <button style={s.btn("secondary")} onClick={exportCSV}>↓ Export</button>
         </div>
       </header>
@@ -723,7 +723,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             <div style={s.card}>
               <div style={s.secTitle}>🔥 Top Velocity SKUs</div>
               {[...inventory].map(i=>({...i,vel:velocityFor(i.sku)})).sort((a,b)=>b.vel-a.vel).slice(0,8).map((item,i) => (
-                <div key={item.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:`1px solid #0f1e30`}}>
+                <div key={item.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:`1px solid #010a3a`}}>
                   <div style={{fontSize:11,color:C.muted,fontFamily:"monospace",width:20}}>#{i+1}</div>
                   <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{item.name}</div><div style={{fontSize:11,color:C.dim,fontFamily:"monospace"}}>{item.sku}</div></div>
                   <div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:700,color:C.amber,fontFamily:"monospace"}}>{item.vel}</div><div style={{fontSize:10,color:C.muted}}>units/wk</div></div>
@@ -746,7 +746,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             </div>
           </div>
           {addForm && (
-            <div style={{background:"#060910",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
+            <div style={{background:"#000228",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
               {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
                 <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
               ))}
@@ -997,7 +997,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           const rows = getReplRows().filter(r=>replSelected[r.id]!==undefined);
                           const totalQty = rows.reduce((s,r)=>s+(parseInt(replSelected[r.id])||0),0);
                           const totalCost = rows.reduce((s,r)=>s+(parseInt(replSelected[r.id])||0)*(r.avgCost||0),0);
-                          return <div style={{background:"#060910",borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+                          return <div style={{background:"#000228",borderRadius:8,padding:"12px 14px",marginBottom:14}}>
                             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                               <span style={{fontSize:11,color:C.dim}}>SKUs selected</span>
                               <span style={{fontFamily:"monospace",fontWeight:700,color:C.purple}}>{selectedCount}</span>
@@ -1151,7 +1151,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                       <div key={k}><div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{k}</div><div style={{fontSize:14,fontWeight:700,fontFamily:["SKU Lines","Grand Total"].includes(k)?"monospace":"inherit",color:k==="Grand Total"?C.amber:C.text}}>{v}</div></div>
                     ))}
                   </div>
-                  {po.notes&&<div style={{marginTop:14,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:13,color:"#94a3b8",borderLeft:`2px solid ${C.border}`}}>{po.notes}</div>}
+                  {po.notes&&<div style={{marginTop:14,padding:"10px 14px",background:"#000228",borderRadius:8,fontSize:13,color:"#94a3b8",borderLeft:`2px solid ${C.border}`}}>{po.notes}</div>}
                 </div>
                 <div style={s.card}>
                   <div style={s.secTitle}>Receiving Progress</div>
@@ -1207,7 +1207,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <div style={s.card}>
                 <div style={s.secTitle}>Forecast Method</div>
                 {[["simple","Simple Average","Avg weekly sales × forecast weeks"],["weighted","Weighted Recent","Recent weeks weighted 85% decay — reacts faster to change"],["trend","Trend-Adjusted","Linear regression — detects growth or decline slope"],["seasonality","Seasonality Override","Weighted base × your monthly peak multipliers"]].map(([id,label,desc])=>(
-                  <div key={id} onClick={()=>setFcMethod(id)} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:6,background:fcMethod===id?"#f59e0b15":C.bg,border:`1px solid ${fcMethod===id?C.amber:C.border}`,transition:"all 0.15s"}}>
+                  <div key={id} onClick={()=>setFcMethod(id)} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:6,background:fcMethod===id?"#99000015":C.bg,border:`1px solid ${fcMethod===id?C.amber:C.border}`,transition:"all 0.15s"}}>
                     <div style={{fontSize:12,fontWeight:700,color:fcMethod===id?C.amber:C.text,marginBottom:3}}>{label}</div>
                     <div style={{fontSize:10,color:C.dim,lineHeight:1.5}}>{desc}</div>
                   </div>
@@ -1330,7 +1330,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   </tbody>
                 </table>
               </div>
-              <div style={{marginTop:12,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:11,color:C.dim,lineHeight:1.7,borderLeft:`2px solid ${C.border}`}}>
+              <div style={{marginTop:12,padding:"10px 14px",background:"#000228",borderRadius:8,fontSize:11,color:C.dim,lineHeight:1.7,borderLeft:`2px solid ${C.border}`}}>
                 <strong style={{color:"#94a3b8"}}>Confidence</strong> is based on data volume: <strong style={{color:"#4ade80"}}>High</strong> = 8+ weeks · <strong style={{color:C.amber}}>Medium</strong> = 4–7 weeks · <strong style={{color:C.red}}>Low</strong> = fewer than 4 weeks. Upload more weekly sales CSVs to improve accuracy.
                 {fcMethod==="trend"&&<span> · <strong style={{color:"#94a3b8"}}>Trend-Adjusted</strong> uses linear regression — the slope (↑/↓ per week) is shown under each SKU's rate.</span>}
                 {fcMethod==="seasonality"&&<span> · <strong style={{color:"#94a3b8"}}>Seasonality</strong> multipliers apply to the months covered by your forecast window. Adjust multipliers in the panel to the left.</span>}
@@ -1400,7 +1400,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   background: uploadSubTab===id ? C.amber : "transparent",
                   color: uploadSubTab===id ? C.bg : "#94a3b8",
                   transition:"all 0.15s",
-                }}>{label}{id==="log"&&allOrderIds.length>0&&<span style={{marginLeft:6,fontSize:10,background:uploadSubTab==="log"?C.bg+"40":"#1e2d45",color:uploadSubTab==="log"?C.bg:C.dim,padding:"1px 6px",borderRadius:99}}>{allOrderIds.length}</span>}</button>
+                }}>{label}{id==="log"&&allOrderIds.length>0&&<span style={{marginLeft:6,fontSize:10,background:uploadSubTab==="log"?C.bg+"40":"#0c1880",color:uploadSubTab==="log"?C.bg:C.dim,padding:"1px 6px",borderRadius:99}}>{allOrderIds.length}</span>}</button>
               ))}
             </div>
 
@@ -1416,7 +1416,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{
                         width:30,height:30,borderRadius:"50%",
-                        background:done?C.amber:active?"#f59e0b20":C.surface,
+                        background:done?C.amber:active?"#99000020":C.surface,
                         border:`2px solid ${done||active?C.amber:C.border}`,
                         display:"flex",alignItems:"center",justifyContent:"center",
                         fontSize:11,fontWeight:800,
@@ -1459,7 +1459,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={s.card}>
                     <div style={s.secTitle}>Required Format</div>
-                    <div style={{background:"#060910",borderRadius:8,padding:16,fontFamily:"monospace",fontSize:12,color:"#94a3b8",lineHeight:2,marginBottom:14}}>
+                    <div style={{background:"#000228",borderRadius:8,padding:16,fontFamily:"monospace",fontSize:12,color:"#94a3b8",lineHeight:2,marginBottom:14}}>
                       <div style={{color:C.dim,marginBottom:2}}># Headers (column order flexible)</div>
                <div style={{color:C.amber}}>Order#,SKU,Quantity,OrderDate</div>
                     <div style={{color:C.green}}>ORD-1001,CHZ-001,2,2024/15/03</div>
@@ -1533,13 +1533,13 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                           const total = oLines.reduce((s,l) => s+l.qty, 0);
                           const exp = orderLogExpanded === ordId;
                           return <div key={ordId} style={{borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden"}}>
-                            <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer",background:exp?"#1e2d4555":C.bg,transition:"background 0.15s"}}>
+                            <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",cursor:"pointer",background:exp?"#0c188055":C.bg,transition:"background 0.15s"}}>
                               <span style={{fontFamily:"monospace",fontWeight:700,color:C.amber,minWidth:90}}>{ordId}</span>
                               <span style={{fontSize:12,color:C.dim,flex:1}}>{oLines.length} item{oLines.length!==1?"s":""}</span>
                               <span style={{fontFamily:"monospace",fontWeight:700}}>{total} units</span>
                               <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{exp?"▲":"▼"}</span>
                             </div>
-                            {exp && <div style={{background:"#060910"}}>
+                            {exp && <div style={{background:"#000228"}}>
                               <table style={s.table}>
                                 <thead><tr>
                                   {["SKU","Product","Qty"].map(h => <th key={h} style={{...s.th,padding:"7px 14px"}}>{h}</th>)}
@@ -1740,14 +1740,14 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                         const impDate = oLines[0]?.importedAt || "—";
                         const exp = orderLogExpanded === ordId;
                         return <div key={ordId} style={{borderRadius:8,border:`1px solid ${exp?C.border+"80":C.border}`,overflow:"hidden",transition:"all 0.15s"}}>
-                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 110px 30px",gap:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?"#1e2d4540":C.bg}}>
+                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 110px 30px",gap:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?"#0c188040":C.bg}}>
                             <span style={{fontFamily:"monospace",fontWeight:700,color:C.amber}}>{ordId}</span>
                             <span style={{fontSize:12,color:C.dim,textAlign:"center"}}>{oLines.length} SKU{oLines.length!==1?"s":""}</span>
                             <span style={{fontFamily:"monospace",fontSize:12,fontWeight:700,textAlign:"center"}}>{totalU} units</span>
                             <span style={{fontFamily:"monospace",fontSize:11,color:C.muted}}>{impDate}</span>
                             <span style={{fontSize:11,color:C.muted,textAlign:"right"}}>{exp?"▲":"▼"}</span>
                           </div>
-                          {exp && <div style={{background:"#060910"}}>
+                          {exp && <div style={{background:"#000228"}}>
                             <table style={s.table}>
                               <thead><tr>
                                 {["SKU","Product","Qty","Order Date","Imported At"].map(h => <th key={h} style={{...s.th,padding:"7px 16px"}}>{h}</th>)}
@@ -1889,7 +1889,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
               <div style={s.secTitle}>Select SKU</div>
               <div style={{maxHeight:400,overflowY:"auto"}}>
                 {inventory.map(item=>(
-                  <div key={item.id} onClick={()=>setSelectedSku(item.sku)} style={{padding:"9px 12px",borderRadius:6,cursor:"pointer",background:selectedSku===item.sku?"#f59e0b15":"transparent",borderLeft:selectedSku===item.sku?`2px solid ${C.amber}`:"2px solid transparent",marginBottom:2}}>
+                  <div key={item.id} onClick={()=>setSelectedSku(item.sku)} style={{padding:"9px 12px",borderRadius:6,cursor:"pointer",background:selectedSku===item.sku?"#99000015":"transparent",borderLeft:selectedSku===item.sku?`2px solid ${C.amber}`:"2px solid transparent",marginBottom:2}}>
                     <div style={{fontSize:11,fontFamily:"monospace",color:C.dim}}>{item.sku}</div>
                     <div style={{fontSize:13,fontWeight:600,color:selectedSku===item.sku?C.amber:C.text}}>{item.name}</div>
                   </div>
@@ -1976,7 +1976,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                 })}
               </tbody>
             </table>
-            <div style={{marginTop:14,padding:"10px 14px",background:"#060910",borderRadius:8,fontSize:11,color:C.dim,borderLeft:`2px solid ${C.border}`,lineHeight:1.7}}>
+            <div style={{marginTop:14,padding:"10px 14px",background:"#000228",borderRadius:8,fontSize:11,color:C.dim,borderLeft:`2px solid ${C.border}`,lineHeight:1.7}}>
               <strong style={{color:"#94a3b8"}}>WAC (Weighted Average Cost)</strong> — recalculated on every PO receipt: <span style={{fontFamily:"monospace",color:C.amber}}>new avg = (units on hand × old avg cost + received qty × PO unit cost) ÷ new total units</span>. Avg cost resets to the PO price if stock was at zero.
             </div>
           </div>
@@ -1991,7 +1991,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             <div style={{fontSize:13,color:C.dim,marginBottom:20}}>{receiveModal.po.lines[receiveModal.lineIdx].sku} — {receiveModal.po.lines[receiveModal.lineIdx].name}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
               {[["Ordered",receiveModal.po.lines[receiveModal.lineIdx].qty],["Received",receiveModal.po.lines[receiveModal.lineIdx].received],["Remaining",receiveModal.po.lines[receiveModal.lineIdx].qty-receiveModal.po.lines[receiveModal.lineIdx].received]].map(([l,v])=>(
-                <div key={l} style={{background:"#060910",borderRadius:8,padding:12,textAlign:"center"}}>
+                <div key={l} style={{background:"#000228",borderRadius:8,padding:12,textAlign:"center"}}>
                   <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
                   <div style={{fontSize:22,fontWeight:800,fontFamily:"monospace"}}>{v}</div>
                 </div>
