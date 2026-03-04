@@ -117,6 +117,7 @@ export default function App() {
   const [fcWeeks, setFcWeeks] = useState(8);
   const [fcSupplier, setFcSupplier] = useState("");
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
+  const [fcLeadTimes, setFcLeadTimes] = useState({});  // { categoryName: weeks }
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
   // Cycle count state
@@ -638,13 +639,14 @@ useEffect(() => {
     return inventory
       .filter(item => !fcSearchTerm || item.sku.toLowerCase().includes(fcSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(fcSearchTerm.toLowerCase()))
       .map(item => {
-        const fc = forecastSKU(item.sku, fcMethod, fcWindow, fcWeeks, fcSeasonality);
+        const leadTime = parseInt(fcLeadTimes[item.category]) || 0;
+        const effectiveWeeks = fcWeeks + leadTime;
+        const fc = forecastSKU(item.sku, fcMethod, fcWindow, effectiveWeeks, fcSeasonality);
         const suggestedOrder = Math.max(0, fc.forecastUnits - item.currentStock);
-        // Round up to nearest reorder qty increment
         const roundedOrder = item.reorderQty > 0
           ? Math.ceil(suggestedOrder / item.reorderQty) * item.reorderQty
           : suggestedOrder;
-        return { ...item, ...fc, suggestedOrder, roundedOrder };
+        return { ...item, ...fc, suggestedOrder, roundedOrder, leadTime, effectiveWeeks };
       })
       .sort((a, b) => b.roundedOrder - a.roundedOrder);
   }
@@ -1464,6 +1466,60 @@ useEffect(() => {
               </div>
             </div>
 
+            {/* Category Lead Times */}
+            {(()=>{
+              const cats = categories.length
+                ? categories.map(c=>c.name)
+                : [...new Set(inventory.map(i=>i.category))].sort();
+              const anyLeadTime = cats.some(c => parseInt(fcLeadTimes[c]) > 0);
+              return (
+                <div style={{...s.card,marginBottom:14,border:`1px solid ${anyLeadTime ? C.blue+"50" : C.border}`}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:anyLeadTime?14:0,flexWrap:"wrap"}}>
+                    <div style={{flex:1}}>
+                      <div style={{...s.secTitle,marginBottom:4}}>Category Lead Times
+                        {anyLeadTime && <span style={{marginLeft:8,fontWeight:400,letterSpacing:0,textTransform:"none",color:C.blue,fontSize:11}}>active — extending horizon per category</span>}
+                      </div>
+                      <div style={{fontSize:11,color:C.dim,marginBottom:12}}>
+                        Set a supplier lead time (weeks) per category. Each category's lead time is <strong>added to the base {fcWeeks}w horizon</strong> for that category's SKUs, ensuring you order enough stock to cover demand through delivery.
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
+                        {cats.map(cat => {
+                          const lt = parseInt(fcLeadTimes[cat]) || 0;
+                          const effective = fcWeeks + lt;
+                          return (
+                            <div key={cat} style={{background:lt>0?"#dbeafe18":C.bg,border:`1px solid ${lt>0?C.blue+"40":C.border}`,borderRadius:8,padding:"10px 14px",minWidth:140}}>
+                              <div style={{fontSize:10,fontWeight:700,color:lt>0?C.blue:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat}</div>
+                              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                <input
+                                  type="number" min="0" max="52"
+                                  value={fcLeadTimes[cat] ?? ""}
+                                  placeholder="0"
+                                  onChange={e=>{
+                                    const v = e.target.value;
+                                    setFcLeadTimes(prev => v===""||v==="0" ? (({[cat]:_,...rest})=>rest)(prev) : {...prev,[cat]:parseInt(v)||0});
+                                  }}
+                                  style={{...s.inp,width:52,padding:"5px 8px",fontSize:13,fontWeight:700,textAlign:"center",color:lt>0?C.blue:C.text,border:`1px solid ${lt>0?C.blue+"60":C.border}`}}
+                                />
+                                <span style={{fontSize:11,color:C.dim}}>wks</span>
+                              </div>
+                              {lt>0 && (
+                                <div style={{marginTop:5,fontSize:10,color:C.blue}}>
+                                  {fcWeeks}w + {lt}w = <strong>{effective}w</strong>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {anyLeadTime && (
+                      <button style={{...s.btn("secondary"),fontSize:11,flexShrink:0}} onClick={()=>setFcLeadTimes({})}>Clear All</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Results table */}
             <div style={s.card}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
@@ -1474,7 +1530,7 @@ useEffect(() => {
                 <table style={s.table}>
                   <thead>
                     <tr>
-                      {["SKU","Product","Current Stock","Avg/Wk","Forecast Demand","Covers Stock?","Suggested Order","Rounded to Reorder Qty","Confidence"].map(h=><th key={h} style={s.th}>{h}</th>)}
+                      {["SKU","Product","Current Stock","Avg/Wk","Horizon","Forecast Demand","Covers Stock?","Suggested Order","Rounded to Reorder Qty","Confidence"].map(h=><th key={h} style={s.th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -1491,6 +1547,15 @@ useEffect(() => {
                           <div>{item.weeklyRate}/wk</div>
                           {item.trend!==0&&<div style={{fontSize:10,color:item.trend>0?"#16a34a":C.red}}>{item.trend>0?"↑":"↓"} {Math.abs(item.trend)}/wk trend</div>}
                           <div style={{fontSize:10,color:C.muted,marginTop:2}}>{item.note}</div>
+                        </td>
+                        <td style={s.td}>
+                          {item.leadTime > 0
+                            ? <div>
+                                <span style={{fontFamily:"monospace",fontWeight:700,color:C.blue}}>{item.effectiveWeeks}w</span>
+                                <div style={{fontSize:10,color:C.dim,marginTop:2}}>{fcWeeks}w + <span style={{color:C.blue}}>{item.leadTime}w lead</span></div>
+                              </div>
+                            : <span style={{fontFamily:"monospace",color:C.dim}}>{fcWeeks}w</span>
+                          }
                         </td>
                         <td style={{...s.td,fontFamily:"monospace",fontWeight:700,fontSize:15}}>{item.forecastUnits}</td>
                         <td style={s.td}>
