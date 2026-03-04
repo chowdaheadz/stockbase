@@ -355,9 +355,9 @@ useEffect(() => {
   }
   // ── END ORDER CSV UPLOAD ──────────────────────────────────────────────────
 
-  function startEdit(item) { setEditingId(item.id); setEditValues({ currentStock: item.currentStock, reorderPoint: item.reorderPoint, reorderQty: item.reorderQty }); }
+  function startEdit(item) { setEditingId(item.id); setEditValues({ currentStock: item.currentStock, reorderPoint: item.reorderPoint, reorderQty: item.reorderQty, category: item.category }); }
   function saveEdit(item) {
-    const u = inventory.map(i => i.id === item.id ? { ...i, currentStock: parseInt(editValues.currentStock)||0, reorderPoint: parseInt(editValues.reorderPoint)||0, reorderQty: parseInt(editValues.reorderQty)||0 } : i);
+    const u = inventory.map(i => i.id === item.id ? { ...i, currentStock: parseInt(editValues.currentStock)||0, reorderPoint: parseInt(editValues.reorderPoint)||0, reorderQty: parseInt(editValues.reorderQty)||0, category: editValues.category || item.category } : i);
     setInventory(u); saveInv(u); setEditingId(null);
   }
   async function addSKU() {
@@ -839,7 +839,7 @@ useEffect(() => {
                   return <tr key={item.id}>
                     <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
                     <td style={{...s.td,fontWeight:600}}>{item.name}</td>
-                    <td style={{...s.td,fontSize:12,color:C.dim}}>{item.category}</td>
+                    <td style={{...s.td,fontSize:12,color:C.dim}}>{ed?<select style={{...s.inp,width:130}} value={editValues.category} onChange={e=>setEditValues(v=>({...v,category:e.target.value}))}>{categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</select>:item.category}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.currentStock} onChange={e=>setEditValues(v=>({...v,currentStock:e.target.value}))} />:<span style={{fontFamily:"monospace",fontSize:15,fontWeight:700,color:st==="out"?C.red:st==="low"?C.orange:C.text}}>{item.currentStock}</span>}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.reorderPoint} onChange={e=>setEditValues(v=>({...v,reorderPoint:e.target.value}))} />:<span style={s.mono}>{item.reorderPoint}</span>}</td>
                     <td style={s.td}>{ed?<input style={{...s.inp,width:70}} value={editValues.reorderQty} onChange={e=>setEditValues(v=>({...v,reorderQty:e.target.value}))} />:<span style={s.mono}>{item.reorderQty}</span>}</td>
