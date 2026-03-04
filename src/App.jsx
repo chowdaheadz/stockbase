@@ -270,7 +270,7 @@ useEffect(() => {
         const rawDate = dateIdx >= 0 ? parts[dateIdx] : null;
         const orderDate = parseOrderDate(rawDate) || importedAt;
         const week = toWeekKey(orderDate);
-        const line = { id: `${Date.now()}-${rawIdx}`, orderId, sku: match.sku, skuId: match.id, skuName: match.name, qty, importedAt, orderDate, week };
+        const line = { id: `${importedAt}-${orderId}-${rawIdx}`, orderId, sku: match.sku, skuId: match.id, skuName: match.name, qty, importedAt, orderDate, week };
         validLines.push(line);
         if (!orderMap[orderId]) orderMap[orderId] = [];
         orderMap[orderId].push(line);
