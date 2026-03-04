@@ -94,6 +94,8 @@ export default function App() {
   const [orderLogExpanded, setOrderLogExpanded] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [confirmDeleteSku, setConfirmDeleteSku] = useState(null); // item object
   const [addForm, setAddForm] = useState(null);
   const [selectedSku, setSelectedSku] = useState(null);
   const fileRef = useRef();
@@ -108,6 +110,7 @@ export default function App() {
   const [replCreatedMsg, setReplCreatedMsg] = useState(null);
   const [replFilterUrgency, setReplFilterUrgency] = useState("all"); // all | critical | low | watch
   const [replSearchTerm, setReplSearchTerm] = useState("");
+  const [replFilterCategory, setReplFilterCategory] = useState("all");
   // Forecast state
   const [fcMethod, setFcMethod] = useState("weighted");   // simple | weighted | trend | seasonality
   const [fcWindow, setFcWindow] = useState("all");        // all | yoy
@@ -607,6 +610,7 @@ useEffect(() => {
       })
       .filter(item => item.urg !== "ok")
       .filter(item => replFilterUrgency === "all" || item.urg === replFilterUrgency)
+      .filter(item => replFilterCategory === "all" || item.category === replFilterCategory)
       .filter(item => !replSearchTerm || item.sku.toLowerCase().includes(replSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(replSearchTerm.toLowerCase()))
       .sort((a, b) => {
         const order = { critical: 0, low: 1, watch: 2 };
@@ -670,6 +674,7 @@ useEffect(() => {
 
   const filteredInventory = inventory
     .filter(i => filterStatus === "all" || statusFor(i) === filterStatus)
+    .filter(i => filterCategory === "all" || i.category === filterCategory)
     .filter(i => !searchTerm || i.sku.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const filteredPOs = purchaseOrders
@@ -805,7 +810,11 @@ useEffect(() => {
             <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
               <input placeholder="Search..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...s.inp,width:180,padding:"8px 12px"}} />
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
-                <option value="all">All</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
+                <option value="all">All Status</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
+              </select>
+              <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} style={{...s.inp,width:"auto"}}>
+                <option value="all">All Categories</option>
+                {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <button style={s.btn("primary")} onClick={addSKU}>+ Add SKU</button>
             </div>
@@ -847,7 +856,7 @@ useEffect(() => {
                     <td style={{...s.td,fontFamily:"monospace",color:avgCost>0?"#059669":C.muted}}>{avgCost>0?`$${avgCost.toFixed(2)}`:"—"}</td>
                     <td style={{...s.td,fontFamily:"monospace",color:onHandValue>0?C.text:C.muted}}>{onHandValue>0?`$${onHandValue.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</td>
                     <td style={s.td}><span style={s.badge(st)}><span style={{width:5,height:5,borderRadius:"50%",background:STATUS_STYLES[st].dot,display:"inline-block"}} />{STATUS_STYLES[st].label}</span></td>
-                    <td style={s.td}><div style={{display:"flex",gap:4}}>{ed?<><button style={s.btn("primary")} onClick={()=>saveEdit(item)}>✓</button><button style={s.btn("secondary")} onClick={()=>setEditingId(null)}>✕</button></>:<><button style={s.btn("secondary")} onClick={()=>startEdit(item)}>Edit</button><button style={s.btn("danger")} onClick={()=>deleteSKU(item.id)}>Del</button></>}</div></td>
+                    <td style={s.td}><div style={{display:"flex",gap:4}}>{ed?<><button style={s.btn("primary")} onClick={()=>saveEdit(item)}>✓</button><button style={s.btn("secondary")} onClick={()=>setEditingId(null)}>✕</button></>:<><button style={s.btn("secondary")} onClick={()=>startEdit(item)}>Edit</button><button style={s.btn("danger")} onClick={()=>setConfirmDeleteSku(item)}>Del</button></>}</div></td>
                   </tr>;
                 })}
               </tbody>
@@ -904,6 +913,10 @@ useEffect(() => {
                   <div style={s.secTitle}>NEEDS REPLENISHMENT — {replRows.length} SKU{replRows.length!==1?"s":""}</div>
                   <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                     <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                    <select value={replFilterCategory} onChange={e=>setReplFilterCategory(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
+                      <option value="all">All Categories</option>
+                      {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
                     {/* Urgency filter pills */}
                     {[["all","All"],["critical","Critical"],["low","Low"],["watch","Watch"]].map(([v,l])=>(
                       <button key={v} onClick={()=>setReplFilterUrgency(v)} style={{...s.btn(replFilterUrgency===v?"primary":"secondary"),fontSize:11,padding:"5px 11px"}}>{l}</button>
@@ -2127,6 +2140,28 @@ useEffect(() => {
         </div>}
 
       </main>
+
+      {/* ── DELETE SKU CONFIRMATION ── */}
+      {confirmDeleteSku && (
+        <div style={s.overlay} onClick={()=>setConfirmDeleteSku(null)}>
+          <div style={{...s.modal,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:6,color:C.red}}>Delete SKU?</div>
+            <div style={{fontSize:13,color:C.dim,marginBottom:4}}>You are about to permanently delete:</div>
+            <div style={{background:"#f8fafc",border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 16px",marginBottom:20}}>
+              <div style={{fontFamily:"monospace",fontSize:12,color:C.dim}}>{confirmDeleteSku.sku}</div>
+              <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{confirmDeleteSku.name}</div>
+              <div style={{fontSize:12,color:C.muted}}>{confirmDeleteSku.category} · {confirmDeleteSku.currentStock} units on hand</div>
+            </div>
+            <div style={{fontSize:12,color:C.red,background:"#fee2e2",borderRadius:6,padding:"8px 12px",marginBottom:20}}>
+              This cannot be undone. All associated order history will remain but inventory and reorder settings will be lost.
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button style={s.btn("secondary")} onClick={()=>setConfirmDeleteSku(null)}>Cancel</button>
+              <button style={s.btn("primary")} onClick={()=>{ deleteSKU(confirmDeleteSku.id); setConfirmDeleteSku(null); }}>Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── RECEIVE MODAL ── */}
       {receiveModal && (
