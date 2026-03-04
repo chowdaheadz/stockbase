@@ -271,7 +271,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
         orderMap[orderId].push(line);
       });
 
-      setUploadPreview({ validLines, errorLines, dupLines, orderMap, importedAt, week, fileName: file.name });
+      setUploadPreview({ validLines, errorLines, dupLines, orderMap, importedAt, fileName: file.name });
       setUploadStep("preview");
       setUploadFeedback(null);
     };
@@ -281,7 +281,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
   function commitUpload() {
     if (!uploadPreview || !uploadPreview.validLines.length) return;
-    const { validLines, week, importedAt } = uploadPreview;
+    const { validLines, importedAt } = uploadPreview;
 
     // Update inventory — deduct each line item individually
     const deductions = {}; // skuId -> total qty
@@ -291,10 +291,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       return ded > 0 ? { ...item, currentStock: Math.max(0, item.currentStock - ded) } : item;
     });
 
-    // Build salesHistory entries (weekly aggregated by SKU for forecasting compat)
-    const weeklyAgg = {}; // sku -> units
-    validLines.forEach(l => { weeklyAgg[l.sku] = (weeklyAgg[l.sku] || 0) + l.qty; });
-    const newHistEntries = Object.entries(weeklyAgg).map(([sku, unitsSold]) => ({ week, sku, unitsSold }));
+    // Build salesHistory entries (per week per SKU for accurate forecasting)
+    const weeklyAgg = {}; // `${week}::${sku}` -> units
+    validLines.forEach(l => { const k = `${l.week}::${l.sku}`; weeklyAgg[k] = (weeklyAgg[k] || 0) + l.qty; });
+    const newHistEntries = Object.entries(weeklyAgg).map(([k, unitsSold]) => { const [week, sku] = k.split("::"); return { week, sku, unitsSold }; });
     const newHist = [...salesHistory, ...newHistEntries];
 
     // Append to orders log
