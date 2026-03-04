@@ -107,6 +107,10 @@ export default function App() {
   const [replCreatedMsg, setReplCreatedMsg] = useState(null);
   const [replFilterUrgency, setReplFilterUrgency] = useState("all"); // all | critical | low | watch
   const [replSearchTerm, setReplSearchTerm] = useState("");
+  const [replFilterCategory, setReplFilterCategory] = useState("all");
+  const [categories, setCategories] = useState([]);
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [adminNewCat, setAdminNewCat] = useState("");
   // Forecast state
   const [fcMethod, setFcMethod] = useState("weighted");   // simple | weighted | trend | seasonality
   const [fcWindow, setFcWindow] = useState("all");        // all | yoy
@@ -158,17 +162,20 @@ useEffect(() => {
   async function loadData() {
     setLoading(true);
     try {
-      const [inv, hist, pos, ord] = await Promise.all([
+      const [inv, hist, pos, ord, cats] = await Promise.all([
         dbGet("inventory"),
         dbGet("salesHistory"),
         dbGet("purchaseOrders"),
         dbGet("orders"),
+        dbGet("categories"),
       ]);
       setInventory(inv || SAMPLE_SKUS);
       setSalesHistory(hist || SAMPLE_HISTORY);
       setPurchaseOrders(pos || []);
       setOrders(ord || []);
       if ((inv || SAMPLE_SKUS).length) setSelectedSku((inv || SAMPLE_SKUS)[0].sku);
+      const derivedCats = [...new Set((inv || SAMPLE_SKUS).map(i => i.category).filter(Boolean))].sort();
+      setCategories(cats || derivedCats);
     } catch {
       setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
       setSelectedSku(SAMPLE_SKUS[0].sku);
@@ -180,6 +187,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
   const saveHist   = async (d) => { try { await dbSet("salesHistory", d); } catch {} };
   const savePOs    = async (d) => { try { await dbSet("purchaseOrders", d); } catch {} };
   const saveOrders = async (d) => { try { await dbSet("orders", d); } catch {} };
+  const saveCats   = async (d) => { try { await dbSet("categories", d); } catch {} };
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -542,6 +550,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       })
       .filter(item => item.urg !== "ok")
       .filter(item => replFilterUrgency === "all" || item.urg === replFilterUrgency)
+      .filter(item => replFilterCategory === "all" || item.category === replFilterCategory)
       .filter(item => !replSearchTerm || item.sku.toLowerCase().includes(replSearchTerm.toLowerCase()) || item.name.toLowerCase().includes(replSearchTerm.toLowerCase()))
       .sort((a, b) => {
         const order = { critical: 0, low: 1, watch: 2 };
@@ -605,6 +614,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
 
   const filteredInventory = inventory
     .filter(i => filterStatus === "all" || statusFor(i) === filterStatus)
+    .filter(i => filterCategory === "all" || i.category === filterCategory)
     .filter(i => !searchTerm || i.sku.toLowerCase().includes(searchTerm.toLowerCase()) || i.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const filteredPOs = purchaseOrders
@@ -675,7 +685,7 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
       <header style={s.header}>
         <div style={s.logo}>⬡ STOCKBASE</div>
         <nav style={{ display:"flex", gap:4 }}>
-          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"]].map(([id,label]) => (
+          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["admin","Admin"]].map(([id,label]) => (
             <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
           ))}
         </nav>
@@ -740,14 +750,28 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
               <input placeholder="Search..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...s.inp,width:180,padding:"8px 12px"}} />
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
-                <option value="all">All</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
+                <option value="all">All Status</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
+              </select>
+              <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} style={{...s.inp,width:"auto"}}>
+                <option value="all">All Categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <button style={s.btn("primary")} onClick={addSKU}>+ Add SKU</button>
             </div>
           </div>
           {addForm && (
             <div style={{background:"#060910",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
-              {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
+              {[["sku","SKU"],["name","Name"]].map(([f,l]) => (
+                <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
+              ))}
+              <div>
+                <div style={{...s.lbl,marginBottom:4}}>Category</div>
+                <select style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm.category} onChange={e=>setAddForm(a=>({...a,category:e.target.value}))}>
+                  <option value="">— Select —</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {[["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
                 <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
               ))}
               <div style={{display:"flex",gap:6,alignSelf:"flex-end"}}><button style={s.btn("primary")} onClick={addSKU}>Save</button><button style={s.btn("secondary")} onClick={()=>setAddForm(null)}>✕</button></div>
@@ -829,6 +853,10 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
                   <div style={s.secTitle}>NEEDS REPLENISHMENT — {replRows.length} SKU{replRows.length!==1?"s":""}</div>
                   <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                     <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                    <select value={replFilterCategory} onChange={e=>setReplFilterCategory(e.target.value)} style={{...s.inp,width:"auto",padding:"6px 10px"}}>
+                      <option value="all">All Categories</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                     {/* Urgency filter pills */}
                     {[["all","All"],["critical","Critical"],["low","Low"],["watch","Watch"]].map(([v,l])=>(
                       <button key={v} onClick={()=>setReplFilterUrgency(v)} style={{...s.btn(replFilterUrgency===v?"primary":"secondary"),fontSize:11,padding:"5px 11px"}}>{l}</button>
@@ -1881,6 +1909,107 @@ const saveInv    = async (d) => { try { await dbSet("inventory", d); } catch {} 
             )}
           </>;
         })()}
+
+        {/* ── ADMIN ── */}
+        {tab==="admin" && <>
+          <div style={{display:"grid",gridTemplateColumns:"400px 1fr",gap:18,alignItems:"start"}}>
+
+            {/* Category Manager */}
+            <div style={s.card}>
+              <div style={s.secTitle}>Category Management</div>
+              <div style={{fontSize:12,color:C.dim,marginBottom:16}}>Categories are used to group SKUs in Inventory and Replenishment filters.</div>
+
+              {/* Add new category */}
+              <div style={{display:"flex",gap:8,marginBottom:20}}>
+                <input
+                  placeholder="New category name..."
+                  value={adminNewCat}
+                  onChange={e=>setAdminNewCat(e.target.value)}
+                  onKeyDown={e=>{
+                    if (e.key==="Enter" && adminNewCat.trim() && !categories.includes(adminNewCat.trim())) {
+                      const updated = [...categories, adminNewCat.trim()].sort();
+                      setCategories(updated); saveCats(updated); setAdminNewCat("");
+                    }
+                  }}
+                  style={{...s.inpFull,flex:1}}
+                />
+                <button
+                  style={{...s.btn("primary"),flexShrink:0}}
+                  onClick={()=>{
+                    const name = adminNewCat.trim();
+                    if (!name || categories.includes(name)) return;
+                    const updated = [...categories, name].sort();
+                    setCategories(updated); saveCats(updated); setAdminNewCat("");
+                  }}
+                >+ Add</button>
+              </div>
+
+              {/* Category list */}
+              {categories.length === 0
+                ? <div style={{textAlign:"center",padding:"32px 0",color:C.muted,fontSize:13}}>No categories yet. Add one above.</div>
+                : <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {categories.map(cat => {
+                      const skuCount = inventory.filter(i => i.category === cat).length;
+                      return <div key={cat} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:8,background:C.bg,border:`1px solid ${C.border}`}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:600}}>{cat}</div>
+                          <div style={{fontSize:11,color:C.muted,marginTop:1}}>{skuCount} SKU{skuCount!==1?"s":""}</div>
+                        </div>
+                        <button
+                          style={{...s.btn("danger"),padding:"4px 10px",fontSize:11}}
+                          onClick={()=>{
+                            if (skuCount > 0) {
+                              if (!window.confirm(`"${cat}" is used by ${skuCount} SKU${skuCount!==1?"s":""}. Remove category anyway? Those SKUs will show as "Uncategorized".`)) return;
+                              const updInv = inventory.map(i => i.category === cat ? {...i, category:"Uncategorized"} : i);
+                              setInventory(updInv); saveInv(updInv);
+                            }
+                            const updated = categories.filter(c => c !== cat);
+                            setCategories(updated); saveCats(updated);
+                          }}
+                        >Remove</button>
+                      </div>;
+                    })}
+                  </div>
+              }
+            </div>
+
+            {/* SKU category assignment */}
+            <div style={s.card}>
+              <div style={s.secTitle}>SKU Category Assignments</div>
+              <div style={{fontSize:12,color:C.dim,marginBottom:16}}>Reassign categories for individual SKUs here.</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={s.table}>
+                  <thead><tr>
+                    <th style={s.th}>SKU</th>
+                    <th style={s.th}>Product</th>
+                    <th style={s.th}>Category</th>
+                  </tr></thead>
+                  <tbody>
+                    {inventory.map(item => (
+                      <tr key={item.id}>
+                        <td style={{...s.td,fontFamily:"monospace",fontSize:12,color:"#94a3b8"}}>{item.sku}</td>
+                        <td style={{...s.td,fontWeight:600}}>{item.name}</td>
+                        <td style={s.td}>
+                          <select
+                            value={item.category||""}
+                            onChange={e=>{
+                              const updInv = inventory.map(i => i.id===item.id ? {...i,category:e.target.value} : i);
+                              setInventory(updInv); saveInv(updInv);
+                            }}
+                            style={{...s.inp,width:180}}
+                          >
+                            <option value="">— Uncategorized —</option>
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>}
 
         {/* ── REPORTS ── */}
         {tab==="reports" && <>
