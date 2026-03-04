@@ -79,5 +79,19 @@ export async function initTables() {
       received      INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_pol_po_id ON po_lines(po_id);
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id   SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+
+    -- Always ensure the fallback category exists
+    INSERT INTO categories (name) VALUES ('Uncategorized') ON CONFLICT DO NOTHING;
+
+    -- Seed any category names already present on inventory rows
+    INSERT INTO categories (name)
+      SELECT DISTINCT category FROM inventory
+      WHERE category IS NOT NULL AND category <> ''
+    ON CONFLICT DO NOTHING;
   `);
 }

@@ -81,6 +81,7 @@ export default function App() {
   const [inventory, setInventory] = useState([]);
   const [salesHistory, setSalesHistory] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
@@ -115,6 +116,12 @@ export default function App() {
   const [fcSeasonality, setFcSeasonality] = useState({ Jan:1,Feb:1,Mar:1,Apr:1,May:1,Jun:1,Jul:1,Aug:1,Sep:1,Oct:1,Nov:1,Dec:1 });
   const [fcSearchTerm, setFcSearchTerm] = useState("");
   const [fcCreatedMsg, setFcCreatedMsg] = useState(null);
+  // Admin state
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editCatName, setEditCatName] = useState("");
+  const [newCatName, setNewCatName] = useState("");
+  const [deletingCatId, setDeletingCatId] = useState(null);
+
 // Auth state
   const [authed, setAuthed] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
@@ -159,11 +166,12 @@ useEffect(() => {
   async function loadData() {
     setLoading(true);
     try {
-      const [inv, hist, pos, ord] = await Promise.all([
+      const [inv, hist, pos, ord, cats] = await Promise.all([
         apiGet("/api/inventory"),
         apiGet("/api/sales-history"),
         apiGet("/api/purchase-orders"),
         apiGet("/api/orders"),
+        apiGet("/api/categories"),
       ]);
       const invData = inv?.length ? inv : SAMPLE_SKUS;
       const histData = hist?.length ? hist : SAMPLE_HISTORY;
@@ -171,6 +179,7 @@ useEffect(() => {
       setSalesHistory(histData);
       setPurchaseOrders(pos || []);
       setOrders(ord || []);
+      setCategories(cats || []);
       if (invData.length) setSelectedSku(invData[0].sku);
     } catch {
       setInventory(SAMPLE_SKUS); setSalesHistory(SAMPLE_HISTORY); setPurchaseOrders([]);
@@ -185,6 +194,34 @@ useEffect(() => {
   const appendHistory = async (entries) => { try { await apiPost("/api/sales-history", entries); } catch {} };
   // Append only new order lines (insert-ignore duplicates)
   const appendOrders = async (lines) => { try { await apiPost("/api/orders", lines); } catch {} };
+
+  // ── CATEGORY ACTIONS ──────────────────────────────────────────────────────
+  async function createCategory() {
+    const name = newCatName.trim();
+    if (!name) return;
+    setNewCatName("");
+    const updated = await apiPost("/api/categories", { name });
+    setCategories(updated);
+  }
+  async function renameCategory(id) {
+    const name = editCatName.trim();
+    if (!name) return;
+    const updated = await apiPatch(`/api/categories?id=${id}`, { name });
+    // Also update category name on inventory items in local state
+    setInventory(inv => inv.map(i => {
+      const old = categories.find(c => c.id === id);
+      return old && i.category === old.name ? { ...i, category: name } : i;
+    }));
+    setCategories(updated);
+    setEditingCatId(null);
+  }
+  async function deleteCategory(id) {
+    const updated = await apiDelete(`/api/categories?id=${id}`);
+    const cat = categories.find(c => c.id === id);
+    if (cat) setInventory(inv => inv.map(i => i.category === cat.name ? { ...i, category: "Uncategorized" } : i));
+    setCategories(updated);
+    setDeletingCatId(null);
+  }
 
   const alerts   = inventory.filter(i => statusFor(i) !== "ok");
   const outCount = inventory.filter(i => statusFor(i) === "out").length;
@@ -703,7 +740,7 @@ useEffect(() => {
       <header style={s.header}>
         <div style={s.logo}>⬡ STOCKBASE</div>
         <nav style={{ display:"flex", gap:4 }}>
-          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"]].map(([id,label]) => (
+          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["admin","Admin"]].map(([id,label]) => (
             <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
           ))}
         </nav>
@@ -775,7 +812,17 @@ useEffect(() => {
           </div>
           {addForm && (
             <div style={{background:"#f8fafc",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
-              {[["sku","SKU"],["name","Name"],["category","Category"],["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
+              {[["sku","SKU"],["name","Name"]].map(([f,l]) => (
+                <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
+              ))}
+              <div>
+                <div style={{...s.lbl,marginBottom:4}}>Category</div>
+                <select style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm.category} onChange={e=>setAddForm(a=>({...a,category:e.target.value}))}>
+                  <option value="">— select —</option>
+                  {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              {[["currentStock","Stock"],["reorderPoint","Reorder At"],["reorderQty","Order Qty"]].map(([f,l]) => (
                 <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
               ))}
               <div style={{display:"flex",gap:6,alignSelf:"flex-end"}}><button style={s.btn("primary")} onClick={addSKU}>Save</button><button style={s.btn("secondary")} onClick={()=>setAddForm(null)}>✕</button></div>
@@ -2009,6 +2056,76 @@ useEffect(() => {
             </div>
           </div>
         </>}
+
+        {tab==="admin" && <div style={{maxWidth:700}}>
+          <div style={{fontSize:20,fontWeight:800,marginBottom:24,color:C.text}}>Admin Settings</div>
+
+          {/* ── Categories ── */}
+          <div style={s.card}>
+            <div style={{...s.secTitle,marginBottom:4}}>CATEGORIES</div>
+            <div style={{fontSize:13,color:C.dim,marginBottom:18}}>Add, rename, or remove product categories. Deleting a category moves its SKUs to <strong>Uncategorized</strong>.</div>
+
+            {/* Category list */}
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+              {categories.map(cat => {
+                const isProtected = cat.name === "Uncategorized";
+                const isEditing   = editingCatId === cat.id;
+                const isDeleting  = deletingCatId === cat.id;
+                return (
+                  <div key={cat.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,background:"#f8fafc",border:`1px solid ${C.border}`}}>
+                    {isEditing ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={editCatName}
+                          onChange={e=>setEditCatName(e.target.value)}
+                          onKeyDown={e=>{ if(e.key==="Enter") renameCategory(cat.id); if(e.key==="Escape") setEditingCatId(null); }}
+                          style={{...s.inpFull,flex:1,marginBottom:0}}
+                        />
+                        <button style={s.btn("primary")} onClick={()=>renameCategory(cat.id)}>Save</button>
+                        <button style={s.btn("secondary")} onClick={()=>setEditingCatId(null)}>Cancel</button>
+                      </>
+                    ) : isDeleting ? (
+                      <>
+                        <div style={{flex:1,fontSize:13}}>
+                          <span style={{fontWeight:700,color:C.red}}>Delete "{cat.name}"?</span>
+                          {cat.itemCount > 0 && <span style={{color:C.dim}}> — {cat.itemCount} SKU{cat.itemCount!==1?"s":""} will move to Uncategorized</span>}
+                        </div>
+                        <button style={s.btn("danger")} onClick={()=>deleteCategory(cat.id)}>Delete</button>
+                        <button style={s.btn("secondary")} onClick={()=>setDeletingCatId(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{flex:1,fontSize:14,fontWeight:600,color:C.text}}>{cat.name}</span>
+                        <span style={{fontSize:12,color:C.muted,fontFamily:"monospace",minWidth:60,textAlign:"right"}}>
+                          {cat.itemCount} SKU{cat.itemCount!==1?"s":""}
+                        </span>
+                        {!isProtected && <>
+                          <button style={{...s.btn("secondary"),fontSize:11}} onClick={()=>{ setEditingCatId(cat.id); setEditCatName(cat.name); }}>Rename</button>
+                          <button style={{...s.btn("danger"),fontSize:11}} onClick={()=>setDeletingCatId(cat.id)}>Delete</button>
+                        </>}
+                        {isProtected && <span style={{fontSize:11,color:C.muted,padding:"4px 8px"}}>protected</span>}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add new category */}
+            <div style={{display:"flex",gap:8,alignItems:"center",paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+              <input
+                style={{...s.inpFull,flex:1,marginBottom:0}}
+                placeholder="New category name..."
+                value={newCatName}
+                onChange={e=>setNewCatName(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter") createCategory(); }}
+              />
+              <button style={s.btn("primary")} onClick={createCategory}>+ Add Category</button>
+            </div>
+          </div>
+        </div>}
+
       </main>
 
       {/* ── RECEIVE MODAL ── */}
