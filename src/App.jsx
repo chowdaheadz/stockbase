@@ -140,6 +140,12 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const storedPassword = useRef(sessionStorage.getItem("sb_pw") || "");
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
 
   // ── API HELPERS ───────────────────────────────────────────────────────────
   async function apiFetch(path, options = {}) {
@@ -780,37 +786,37 @@ useEffect(() => {
   // ── STYLES ────────────────────────────────────────────────────────────────
   const C = { bg: "#f1f5f9", surface: "#ffffff", border: "#e2e8f0", muted: "#94a3b8", dim: "#64748b", text: "#0f172a", amber: "#990000", blue: "#2563eb", green: "#16a34a", orange: "#ea580c", red: "#dc2626", purple: "#7c3aed" };
   const s = {
-    app: { background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text },
-    header: { background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 32px", display: "flex", alignItems: "center", gap: 24, height: 64, position: "sticky", top: 0, zIndex: 50 },
-    logo: { fontFamily: "'Space Mono',monospace", fontSize: 17, fontWeight: 700, color: C.amber, letterSpacing: 1, whiteSpace: "nowrap" },
-    navBtn: (a) => ({ padding: "6px 14px", border: "none", background: a ? "#99000015" : "transparent", color: a ? C.amber : "#64748b", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s" }),
-    main: { padding: "28px 32px", maxWidth: 1400, margin: "0 auto" },
-    card: { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px" },
-    statCard: (a) => ({ background: C.surface, border: `1px solid ${a}30`, borderRadius: 12, padding: "20px 24px", borderLeft: `3px solid ${a}` }),
+    app: { background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text, paddingBottom: isMobile ? 72 : 0 },
+    header: { background: C.surface, borderBottom: `1px solid ${C.border}`, padding: isMobile ? "10px 14px" : "0 32px", display: "flex", alignItems: "center", gap: isMobile ? 8 : 24, height: isMobile ? "auto" : 64, position: "sticky", top: 0, zIndex: 50, flexWrap: "nowrap" },
+    logo: { fontFamily: "'Space Mono',monospace", fontSize: isMobile ? 14 : 17, fontWeight: 700, color: C.amber, letterSpacing: 1, whiteSpace: "nowrap" },
+    navBtn: (a) => ({ padding: isMobile ? "10px 14px" : "6px 14px", border: "none", background: a ? "#99000015" : "transparent", color: a ? C.amber : "#64748b", borderRadius: isMobile ? 0 : 6, cursor: "pointer", fontFamily: "inherit", fontSize: isMobile ? 11 : 13, fontWeight: 600, borderBottom: a ? `2px solid ${C.amber}` : "2px solid transparent", transition: "all 0.15s", whiteSpace: "nowrap", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }),
+    main: { padding: isMobile ? "12px 12px" : "28px 32px", maxWidth: 1400, margin: "0 auto" },
+    card: { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? "14px 14px" : "20px 24px" },
+    statCard: (a) => ({ background: C.surface, border: `1px solid ${a}30`, borderRadius: 12, padding: isMobile ? "14px 16px" : "20px 24px", borderLeft: `3px solid ${a}` }),
     statL: { fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: C.dim, textTransform: "uppercase", marginBottom: 6 },
-    statV: (a) => ({ fontSize: 34, fontWeight: 800, color: a, fontFamily: "'Space Mono',monospace", lineHeight: 1 }),
+    statV: (a) => ({ fontSize: isMobile ? 26 : 34, fontWeight: 800, color: a, fontFamily: "'Space Mono',monospace", lineHeight: 1 }),
     statS: { fontSize: 11, color: C.muted, marginTop: 5 },
     secTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.dim, textTransform: "uppercase", marginBottom: 14 },
     table: { width: "100%", borderCollapse: "collapse" },
-    th: { padding: "9px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` },
-    td: { padding: "11px 12px", fontSize: 13, borderBottom: `1px solid #e2e8f0`, verticalAlign: "middle" },
+    th: { padding: isMobile ? "8px 8px" : "9px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` },
+    td: { padding: isMobile ? "10px 8px" : "11px 12px", fontSize: isMobile ? 12 : 13, borderBottom: `1px solid #e2e8f0`, verticalAlign: "middle" },
     inp: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "7px 10px", fontSize: 13, fontFamily: "monospace" },
     inpFull: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
     sel: { background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" },
     btn: (v) => ({ padding: v==="primary"?"10px 18px":"6px 13px", background: v==="primary"?C.amber:v==="danger"?"#fee2e2":v==="blue"?"#dbeafe":C.border, color: v==="primary"?"#fff":v==="danger"?C.red:v==="blue"?C.blue:"#64748b", border:"none", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5, transition:"all 0.15s", whiteSpace:"nowrap" }),
     badge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 8px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:STATUS_STYLES[st].bg, color:STATUS_STYLES[st].color }),
     poBadge: (st) => ({ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1, background:PO_STATUS[st]?.bg||C.border, color:PO_STATUS[st]?.color||"#94a3b8" }),
-    alertRow: (st) => ({ background:STATUS_STYLES[st].bg+"44", border:`1px solid ${STATUS_STYLES[st].dot}30`, borderRadius:8, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }),
+    alertRow: (st) => ({ background:STATUS_STYLES[st].bg+"44", border:`1px solid ${STATUS_STYLES[st].dot}30`, borderRadius:8, padding:"12px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }),
     mono: { fontFamily: "'Space Mono',monospace" },
     lbl: { fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
     fg: { display: "flex", flexDirection: "column", gap: 3 },
-    overlay: { position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 },
-    modal: { background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:32, width:420, boxShadow:"0 25px 60px #0000001a" },
+    overlay: { position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding: isMobile ? "12px" : 0 },
+    modal: { background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding: isMobile ? 20 : 32, width: isMobile ? "100%" : 420, maxWidth:"100%", boxShadow:"0 25px 60px #0000001a", maxHeight: isMobile ? "90vh" : "none", overflowY: isMobile ? "auto" : "visible" },
   };
 // Password screen
   if (!authed) return (
     <div style={{background:"#f1f5f9",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
-      <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,padding:"48px 40px",width:360,textAlign:"center",boxShadow:"0 4px 24px #0000000a"}}>
+      <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,padding:"40px 28px",width:"min(360px, calc(100vw - 32px))",textAlign:"center",boxShadow:"0 4px 24px #0000000a"}}>
         <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#990000",marginBottom:8}}>⬡ STOCKBASE</div>
         <div style={{fontSize:13,color:"#64748b",marginBottom:32}}>Enter your team password to continue</div>
         <input
@@ -838,29 +844,51 @@ useEffect(() => {
     <div style={s.app}>
       <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-      <header style={s.header}>
-        <div style={s.logo}>⬡ STOCKBASE</div>
-        <nav style={{ display:"flex", gap:4 }}>
-          {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["cyclecount","Cycle Count"],["admin","Admin"]].map(([id,label]) => (
-            <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
-          ))}
-        </nav>
-        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {alerts.length > 0 && <div style={{ background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
-          <button style={s.btn("secondary")} onClick={exportCSV}>↓ Export</button>
-        </div>
-      </header>
+      {isMobile ? (
+        <>
+          {/* Mobile top bar */}
+          <header style={s.header}>
+            <div style={s.logo}>⬡ STOCKBASE</div>
+            <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+              {alerts.length > 0 && <div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:6,padding:"4px 10px",fontSize:11,color:C.red,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("replenishment")}>⚠ {alerts.length}</div>}
+              <button style={{...s.btn("secondary"),padding:"6px 10px",fontSize:11}} onClick={exportCSV}>↓ CSV</button>
+            </div>
+          </header>
+          {/* Mobile bottom nav */}
+          <nav style={{position:"fixed",bottom:0,left:0,right:0,background:C.surface,borderTop:`1px solid ${C.border}`,display:"flex",zIndex:50,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+            {[["dashboard","📊","Home"],["inventory","📦","Inventory"],["replenishment","⚠️","Reorder"],["po","📋","Orders"],["forecast","📈","Forecast"],["upload","⬆️","Upload"],["reports","📰","Reports"],["cyclecount","✅","Count"],["admin","⚙️","Admin"]].map(([id,icon,label]) => (
+              <button key={id} style={s.navBtn(tab===id)} onClick={()=>{setTab(id);if(id==="po")setPoView("list");}}>
+                <span style={{fontSize:16}}>{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+        </>
+      ) : (
+        <header style={s.header}>
+          <div style={s.logo}>⬡ STOCKBASE</div>
+          <nav style={{ display:"flex", gap:4 }}>
+            {[["dashboard","Dashboard"],["inventory","Inventory"],["replenishment","Replenishment"],["po","Purchase Orders"],["forecast","Forecast"],["upload","Upload CSV"],["reports","Reports"],["cyclecount","Cycle Count"],["admin","Admin"]].map(([id,label]) => (
+              <button key={id} style={s.navBtn(tab===id)} onClick={() => { setTab(id); if(id==="po") setPoView("list"); }}>{label}</button>
+            ))}
+          </nav>
+          <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+            {alerts.length > 0 && <div style={{ background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:6, padding:"4px 12px", fontSize:11, color:C.red, fontWeight:700, cursor:"pointer" }} onClick={() => setTab("replenishment")}>⚠ {alerts.length} ALERT{alerts.length!==1?"S":""}</div>}
+            <button style={s.btn("secondary")} onClick={exportCSV}>↓ Export</button>
+          </div>
+        </header>
+      )}
 
       <main style={s.main}>
 
         {/* ── DASHBOARD ── */}
         {tab==="dashboard" && <>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap:14, marginBottom:14 }}>
             {[["Total SKUs",inventory.length,C.amber,"active products"],["Total Units",totalUnits.toLocaleString(),C.blue,"on hand"],["Open POs",openPOs,C.purple,"in progress"]].map(([l,v,a,sub]) => (
               <div key={l} style={s.statCard(a)}><div style={s.statL}>{l}</div><div style={s.statV(a)}>{v}</div><div style={s.statS}>{sub}</div></div>
             ))}
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:22 }}>
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap:14, marginBottom:22 }}>
             {[["Low Stock",lowCount,C.orange,"below reorder point"],["Out of Stock",outCount,C.red,"need reorder now"]].map(([l,v,a,sub]) => (
               <div key={l} style={s.statCard(a)}><div style={s.statL}>{l}</div><div style={s.statV(a)}>{v}</div><div style={s.statS}>{sub}</div></div>
             ))}
@@ -874,7 +902,7 @@ useEffect(() => {
               </div>;
             })()}
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18 }}>
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap:18 }}>
             <div style={s.card}>
               <div style={s.secTitle}>⚠ Stock Alerts</div>
               {alerts.length===0 ? <div style={{color:C.green,fontSize:14,padding:"16px 0"}}>✓ All SKUs well-stocked</div>
@@ -901,10 +929,10 @@ useEffect(() => {
 
         {/* ── INVENTORY ── */}
         {tab==="inventory" && <div style={s.card}>
-          <div style={{display:"flex",gap:12,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:12,marginBottom:18,alignItems:isMobile?"flex-start":"center",flexWrap:"wrap",flexDirection:isMobile?"column":"row"}}>
             <div style={s.secTitle}>INVENTORY — {filteredInventory.length} SKUs</div>
-            <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
-              <input placeholder="Search..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...s.inp,width:180,padding:"8px 12px"}} />
+            <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
+              <input placeholder="Search..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...s.inp,width:isMobile?"100%":180,padding:"8px 12px",boxSizing:"border-box"}} />
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...s.inp,width:"auto"}}>
                 <option value="all">All Status</option><option value="out">Out</option><option value="low">Low</option><option value="ok">OK</option>
               </select>
@@ -916,7 +944,7 @@ useEffect(() => {
             </div>
           </div>
           {addForm && (
-            <div style={{background:"#f8fafc",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
+            <div style={{background:"#f8fafc",border:`1px solid ${C.amber}40`,borderRadius:10,padding:18,marginBottom:14,display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr) repeat(3,100px) auto",gap:8,alignItems:"end"}}>
               {[["sku","SKU"],["name","Name"]].map(([f,l]) => (
                 <div key={f}><div style={{...s.lbl,marginBottom:4}}>{l}</div><input style={{...s.inp,width:"100%",boxSizing:"border-box"}} value={addForm[f]} onChange={e=>setAddForm(a=>({...a,[f]:e.target.value}))} placeholder={l} /></div>
               ))}
@@ -977,7 +1005,7 @@ useEffect(() => {
 
           return <>
             {/* Summary bar */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
+            <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",gap:14,marginBottom:18}}>
               <div style={s.statCard(C.red)}>
                 <div style={s.statL}>Critical</div>
                 <div style={s.statV(C.red)}>{critCount}</div>
@@ -1000,7 +1028,7 @@ useEffect(() => {
               </div>
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:18,alignItems:"start"}}>
+            <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "1fr 320px",gap:18,alignItems:"start"}}>
 
               {/* Main table */}
               <div style={s.card}>
@@ -1282,7 +1310,7 @@ useEffect(() => {
               <button style={{...s.btn("secondary"),fontSize:11}} onClick={()=>setPoView("list")}>← Back</button>
               <div style={s.secTitle}>NEW PURCHASE ORDER</div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:22}}>
+            <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",gap:16,marginBottom:22}}>
               <div style={s.fg}><div style={s.lbl}>PO Number</div><input style={s.inpFull} value={poForm.poNumber} onChange={e=>setPoForm(f=>({...f,poNumber:e.target.value}))} /></div>
               <div style={s.fg}><div style={s.lbl}>Supplier Name *</div><input style={s.inpFull} placeholder="e.g. Acme Wholesale" value={poForm.supplier} onChange={e=>setPoForm(f=>({...f,supplier:e.target.value}))} /></div>
               <div style={s.fg}><div style={s.lbl}>Status</div><select style={s.sel} value={poForm.status} onChange={e=>setPoForm(f=>({...f,status:e.target.value}))}><option value="draft">Draft</option><option value="sent">Sent to Supplier</option></select></div>
@@ -1327,7 +1355,7 @@ useEffect(() => {
                   <button style={s.btn("danger")} onClick={()=>deletePO(po.id)}>Delete PO</button>
                 </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:18}}>
+              <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",gap:18,marginBottom:18}}>
                 <div style={s.card}>
                   <div style={s.secTitle}>PO Details</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1386,7 +1414,7 @@ useEffect(() => {
 
           return <>
             {/* Controls */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:18}}>
+            <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr",gap:14,marginBottom:18}}>
               {/* Method */}
               <div style={s.card}>
                 <div style={s.secTitle}>Forecast Method</div>
@@ -1677,7 +1705,7 @@ useEffect(() => {
               </div>
 
               {/* STEP 1 — Drop */}
-              {uploadStep==="idle" && <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18}}>
+              {uploadStep==="idle" && <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "3fr 2fr",gap:18}}>
                 <div style={s.card}>
                   <div style={s.secTitle}>Drop Your Order Export</div>
                   <div
@@ -1747,7 +1775,7 @@ useEffect(() => {
                 const previewUnits = validLines.reduce((s,l) => s+l.qty, 0);
                 return <div style={{display:"flex",flexDirection:"column",gap:16}}>
                   {/* Summary cards */}
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
+                  <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",gap:14}}>
                     <div style={s.statCard("#2563eb")}>
                       <div style={s.statL}>File</div>
                       <div style={{fontSize:13,fontWeight:700,color:"#2563eb",fontFamily:"monospace",wordBreak:"break-all",lineHeight:1.3,marginBottom:4}}>{fileName.length > 22 ? fileName.slice(0,22)+"…" : fileName}</div>
@@ -1770,7 +1798,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:16}}>
+                  <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "3fr 2fr",gap:16}}>
                     {/* Order breakdown */}
                     <div style={s.card}>
                       <div style={s.secTitle}>Order Breakdown — {orderIds.length} orders to import</div>
@@ -1944,7 +1972,7 @@ useEffect(() => {
 
             {/* ── LOG SUB-TAB ── */}
             {uploadSubTab==="log" && <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
+              <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",gap:14,marginBottom:18}}>
                 {[
                   ["Total Orders", allOrderIds.length, C.blue],
                   ["Total Line Items", orders.length, "#059669"],
@@ -1987,7 +2015,7 @@ useEffect(() => {
                         const impDate = oLines[0]?.importedAt || "—";
                         const exp = orderLogExpanded === ordId;
                         return <div key={ordId} style={{borderRadius:8,border:`1px solid ${exp?C.border+"80":C.border}`,overflow:"hidden",transition:"all 0.15s"}}>
-                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 110px 30px",gap:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?"#e2e8f0":C.bg}}>
+                          <div onClick={() => setOrderLogExpanded(exp ? null : ordId)} style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 60px 24px" : "1fr 80px 80px 110px 30px",gap:isMobile?8:12,alignItems:"center",padding:"11px 16px",cursor:"pointer",background:exp?"#e2e8f0":C.bg}}>
                             <span style={{fontFamily:"monospace",fontWeight:700,color:C.amber}}>{ordId}</span>
                             <span style={{fontSize:12,color:C.dim,textAlign:"center"}}>{oLines.length} SKU{oLines.length!==1?"s":""}</span>
                             <span style={{fontFamily:"monospace",fontSize:12,fontWeight:700,textAlign:"center"}}>{totalU} units</span>
@@ -2029,7 +2057,7 @@ useEffect(() => {
                     <button style={s.btn("primary")} onClick={() => setUploadSubTab("upload")}>Upload Orders</button>
                   </div>
                 : <>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
+                    <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",gap:14,marginBottom:18}}>
                       {[
                         ["Total Orders",    allOrderIds.length, C.blue,   "imported to date"],
                         ["Total Line Items",orders.length,      "#059669","individual SKU rows"],
@@ -2044,7 +2072,7 @@ useEffect(() => {
                       ))}
                     </div>
 
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:18}}>
+                    <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",gap:18,marginBottom:18}}>
                       {/* Orders per week bar chart */}
                       <div style={s.card}>
                         <div style={s.secTitle}>Orders & Units Per Upload Week</div>
@@ -2131,7 +2159,7 @@ useEffect(() => {
 
         {/* ── REPORTS ── */}
         {tab==="reports" && <>
-          <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:18}}>
+          <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : "280px 1fr",gap:18}}>
             <div style={s.card}>
               <div style={s.secTitle}>Select SKU</div>
               <div style={{maxHeight:400,overflowY:"auto"}}>
@@ -2428,7 +2456,7 @@ useEffect(() => {
                 </div>
 
                 {/* Summary cards */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
+                <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",gap:12,marginBottom:18}}>
                   {[
                     ["Counted",counted.length,C.blue],
                     ["Matches",matches.length,C.green],
@@ -2609,7 +2637,7 @@ useEffect(() => {
           <div style={s.modal} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:16,fontWeight:800,marginBottom:5}}>Receive Stock</div>
             <div style={{fontSize:13,color:C.dim,marginBottom:20}}>{receiveModal.po.lines[receiveModal.lineIdx].sku} — {receiveModal.po.lines[receiveModal.lineIdx].name}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
+            <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr",gap:10,marginBottom:20}}>
               {[["Ordered",receiveModal.po.lines[receiveModal.lineIdx].qty],["Received",receiveModal.po.lines[receiveModal.lineIdx].received],["Remaining",receiveModal.po.lines[receiveModal.lineIdx].qty-receiveModal.po.lines[receiveModal.lineIdx].received]].map(([l,v])=>(
                 <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:12,textAlign:"center"}}>
                   <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
