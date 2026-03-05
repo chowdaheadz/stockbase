@@ -1033,10 +1033,10 @@ useEffect(() => {
               {/* Main table */}
               <div style={s.card}>
                 {/* Toolbar */}
-                <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:10,marginBottom:16,alignItems:isMobile?"flex-start":"center",flexWrap:"wrap",flexDirection:isMobile?"column":"row"}}>
                   <div style={s.secTitle}>NEEDS REPLENISHMENT — {replRows.length} SKU{replRows.length!==1?"s":""}</div>
-                  <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                    <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                  <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",width:isMobile?"100%":"auto"}}>
+                    <input placeholder="Search..." value={replSearchTerm} onChange={e=>setReplSearchTerm(e.target.value)} style={{...s.inp,width:isMobile?"100%":160,padding:"6px 10px",boxSizing:"border-box"}} />
                     <select value={replFilterCategory} onChange={e=>setReplFilterCategory(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
                       <option value="all">All Categories</option>
                       {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
@@ -1283,7 +1283,7 @@ useEffect(() => {
                   <div style={{fontSize:13,marginBottom:20}}>Create your first PO to track supplier orders.</div>
                   <button style={s.btn("primary")} onClick={initNewPO}>+ Create Purchase Order</button>
                 </div>
-              : <table style={s.table}>
+              : <div style={{overflowX:"auto"}}><table style={s.table}>
                   <thead><tr>{["PO #","Supplier","Date","Lines","Total Cost","Status",""].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
                   <tbody>
                     {filteredPOs.map(po => {
@@ -1300,7 +1300,7 @@ useEffect(() => {
                       </tr>;
                     })}
                   </tbody>
-                </table>
+                </table></div>
             }
           </div>}
 
@@ -1316,7 +1316,7 @@ useEffect(() => {
               <div style={s.fg}><div style={s.lbl}>Status</div><select style={s.sel} value={poForm.status} onChange={e=>setPoForm(f=>({...f,status:e.target.value}))}><option value="draft">Draft</option><option value="sent">Sent to Supplier</option></select></div>
             </div>
             <div style={s.secTitle}>LINE ITEMS</div>
-            <table style={{...s.table,marginBottom:10}}>
+            <div style={{overflowX:"auto"}}><table style={{...s.table,marginBottom:10}}>
               <thead><tr>{["SKU / Product","Qty","Cost per Unit","Line Total",""].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
               <tbody>
                 {poForm.lines.map((line, idx) => {
@@ -1330,7 +1330,7 @@ useEffect(() => {
                   </tr>;
                 })}
               </tbody>
-            </table>
+            </table></div>
             <button style={{...s.btn("secondary"),marginBottom:22}} onClick={()=>setPoForm(f=>({...f,lines:[...f.lines,{skuId:"",qty:"",costPerUnit:""}]}))}>+ Add Line</button>
             <div style={{...s.fg,marginBottom:22}}><div style={s.lbl}>Notes (optional)</div><textarea style={{...s.inpFull,height:72,resize:"vertical",fontFamily:"inherit"}} value={poForm.notes} onChange={e=>setPoForm(f=>({...f,notes:e.target.value}))} placeholder="Any notes..." /></div>
             <div style={{borderTop:`1px solid ${C.border}`,paddingTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1349,7 +1349,7 @@ useEffect(() => {
                 <button style={{...s.btn("secondary"),fontSize:11}} onClick={()=>setPoView("list")}>← All POs</button>
                 <div style={{fontSize:20,fontWeight:800,fontFamily:"monospace",color:C.amber}}>{po.poNumber}</div>
                 <span style={s.poBadge(po.status)}>{PO_STATUS[po.status]?.label}</span>
-                <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
                   {po.status==="draft"&&<button style={s.btn("blue")} onClick={()=>updatePOStatus(po,"sent")}>Mark as Sent →</button>}
                   {po.status==="sent"&&<button style={s.btn("secondary")} onClick={()=>updatePOStatus(po,"draft")}>← Revert to Draft</button>}
                   <button style={s.btn("danger")} onClick={()=>deletePO(po.id)}>Delete PO</button>
@@ -1380,7 +1380,7 @@ useEffect(() => {
               </div>
               <div style={s.card}>
                 <div style={s.secTitle}>Line Items</div>
-                <table style={s.table}>
+                <div style={{overflowX:"auto"}}><table style={s.table}>
                   <thead><tr>{["SKU","Product","Ordered","Cost/Unit","Line Total","Received","Remaining",""].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
                   <tbody>
                     {po.lines.map((line,idx)=>{
@@ -1397,7 +1397,7 @@ useEffect(() => {
                       </tr>;
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </>;
           })()}
@@ -1515,7 +1515,7 @@ useEffect(() => {
                           const lt = parseInt(fcLeadTimes[cat]) || 0;
                           const effective = fcWeeks + lt;
                           return (
-                            <div key={cat} style={{background:lt>0?"#dbeafe18":C.bg,border:`1px solid ${lt>0?C.blue+"40":C.border}`,borderRadius:8,padding:"10px 14px",minWidth:140}}>
+                            <div key={cat} style={{background:lt>0?"#dbeafe18":C.bg,border:`1px solid ${lt>0?C.blue+"40":C.border}`,borderRadius:8,padding:"10px 14px",minWidth:isMobile?0:140,flex:isMobile?"1 1 calc(50% - 6px)":"0 0 auto"}}>
                               <div style={{fontSize:10,fontWeight:700,color:lt>0?C.blue:C.dim,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat}</div>
                               <div style={{display:"flex",alignItems:"center",gap:6}}>
                                 <input
@@ -1552,7 +1552,7 @@ useEffect(() => {
             <div style={s.card}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
                 <div style={s.secTitle}>Forecast Results — {fcRows.length} SKUs</div>
-                <input placeholder="Filter SKU or name..." value={fcSearchTerm} onChange={e=>setFcSearchTerm(e.target.value)} style={{...s.inp,width:200,padding:"7px 12px",marginLeft:"auto"}} />
+                <input placeholder="Filter SKU or name..." value={fcSearchTerm} onChange={e=>setFcSearchTerm(e.target.value)} style={{...s.inp,width:isMobile?"100%":200,padding:"7px 12px",marginLeft:isMobile?0:"auto",boxSizing:"border-box"}} />
               </div>
               <div style={{overflowX:"auto"}}>
                 <table style={s.table}>
@@ -1815,7 +1815,7 @@ useEffect(() => {
                               <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{exp?"▲":"▼"}</span>
                             </div>
                             {exp && <div style={{background:"#f8fafc"}}>
-                              <table style={s.table}>
+                              <div style={{overflowX:"auto"}}><table style={s.table}>
                                 <thead><tr>
                                   {["SKU","Product","Qty"].map(h => <th key={h} style={{...s.th,padding:"7px 14px"}}>{h}</th>)}
                                 </tr></thead>
@@ -1826,7 +1826,7 @@ useEffect(() => {
                                     <td style={{...s.td,fontFamily:"monospace",fontWeight:700,padding:"7px 14px"}}>{l.qty}</td>
                                   </tr>
                                 ))}</tbody>
-                              </table>
+                              </table></div>
                             </div>}
                           </div>;
                         })}
@@ -1994,7 +1994,7 @@ useEffect(() => {
                       placeholder="Search order # or SKU..."
                       value={orderLogSearch}
                       onChange={e => setOrderLogSearch(e.target.value)}
-                      style={{...s.inp,width:240,padding:"7px 12px"}}
+                      style={{...s.inp,width:isMobile?"100%":240,padding:"7px 12px",boxSizing:"border-box"}}
                     />
                     {orderLogSearch && <button style={{...s.btn("secondary"),fontSize:11}} onClick={() => setOrderLogSearch("")}>✕ Clear</button>}
                     <span style={{fontSize:11,color:C.muted}}>{filteredOrderIds.length} of {allOrderIds.length} orders</span>
@@ -2023,7 +2023,7 @@ useEffect(() => {
                             <span style={{fontSize:11,color:C.muted,textAlign:"right"}}>{exp?"▲":"▼"}</span>
                           </div>
                           {exp && <div style={{background:"#f8fafc"}}>
-                            <table style={s.table}>
+                            <div style={{overflowX:"auto"}}><table style={s.table}>
                               <thead><tr>
                                 {["SKU","Product","Qty","Order Date","Imported At"].map(h => <th key={h} style={{...s.th,padding:"7px 16px"}}>{h}</th>)}
                               </tr></thead>
@@ -2038,7 +2038,7 @@ useEffect(() => {
                                   </tr>
                                 ))}
                               </tbody>
-                            </table>
+                            </table></div>
                           </div>}
                         </div>;
                       })}
@@ -2135,7 +2135,7 @@ useEffect(() => {
                     {/* Full weekly breakdown table */}
                     <div style={s.card}>
                       <div style={s.secTitle}>Full Upload History</div>
-                      <table style={s.table}>
+                      <div style={{overflowX:"auto"}}><table style={s.table}>
                         <thead><tr>
                           {["Upload Week","Orders","Line Items","Units Sold","Avg Units/Order"].map(h => <th key={h} style={s.th}>{h}</th>)}
                         </tr></thead>
@@ -2223,7 +2223,7 @@ useEffect(() => {
                 </div>;
               })()}
             </div>
-            <table style={s.table}>
+            <div style={{overflowX:"auto"}}><table style={s.table}>
               <thead><tr>{["SKU","Product","Category","Units on Hand","Avg Cost/Unit","On-Hand Value","Recent PO History",""].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
               <tbody>
                 {[...inventory].sort((a,b)=>(b.avgCost||0)*b.currentStock-(a.avgCost||0)*a.currentStock).map(item=>{
@@ -2250,7 +2250,7 @@ useEffect(() => {
                   </tr>;
                 })}
               </tbody>
-            </table>
+            </table></div>
             <div style={{marginTop:14,padding:"10px 14px",background:"#f8fafc",borderRadius:8,fontSize:11,color:C.dim,borderLeft:`2px solid ${C.border}`,lineHeight:1.7}}>
               <strong style={{color:"#94a3b8"}}>WAC (Weighted Average Cost)</strong> — recalculated on every PO receipt: <span style={{fontFamily:"monospace",color:C.amber}}>new avg = (units on hand × old avg cost + received qty × PO unit cost) ÷ new total units</span>. Avg cost resets to the PO price if stock was at zero.
             </div>
@@ -2288,8 +2288,8 @@ useEffect(() => {
                 <div style={s.card}>
                   <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
                     <div style={s.secTitle}>SELECT SKUs — {selCount} selected</div>
-                    <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
-                      <input placeholder="Search..." value={ccSetupSearch} onChange={e=>setCcSetupSearch(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                    <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
+                      <input placeholder="Search..." value={ccSetupSearch} onChange={e=>setCcSetupSearch(e.target.value)} style={{...s.inp,width:isMobile?"100%":160,padding:"6px 10px",boxSizing:"border-box"}} />
                       <select value={ccSetupCat} onChange={e=>setCcSetupCat(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
                         <option value="all">All Categories</option>
                         {categories.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
@@ -2353,7 +2353,7 @@ useEffect(() => {
                     <div style={{fontSize:22,fontWeight:800,color:C.text}}>Counting — {ccDate}</div>
                     <div style={{fontSize:12,color:C.dim,marginTop:2}}>{countedCount} of {ccItems.length} SKUs entered · {ccItems.length - countedCount} remaining</div>
                   </div>
-                  <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
                     <button style={s.btn("secondary")} onClick={printCycleSheet}>🖨 Print Sheet</button>
                     <button style={{...s.btn("secondary")}} onClick={()=>{ setCcView("setup"); }}>← Back</button>
                     <button style={s.btn("primary")} onClick={()=>setCcView("results")}>View Results →</button>
@@ -2368,8 +2368,8 @@ useEffect(() => {
                 <div style={s.card}>
                   <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
                     <div style={s.secTitle}>{ccItems.length} SKUs TO COUNT</div>
-                    <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
-                      <input placeholder="Search..." value={ccCountSearch} onChange={e=>setCcCountSearch(e.target.value)} style={{...s.inp,width:160,padding:"6px 10px"}} />
+                    <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
+                      <input placeholder="Search..." value={ccCountSearch} onChange={e=>setCcCountSearch(e.target.value)} style={{...s.inp,width:isMobile?"100%":160,padding:"6px 10px",boxSizing:"border-box"}} />
                       <select value={ccCountCat} onChange={e=>setCcCountCat(e.target.value)} style={{...s.inp,padding:"6px 10px",width:"auto"}}>
                         <option value="all">All Categories</option>
                         {countedCategories.map(c=><option key={c} value={c}>{c}</option>)}
@@ -2443,7 +2443,7 @@ useEffect(() => {
                     <div style={{fontSize:22,fontWeight:800,color:C.text}}>Count Results — {ccDate}</div>
                     <div style={{fontSize:12,color:C.dim,marginTop:2}}>{counted.length} of {ccItems.length} SKUs counted</div>
                   </div>
-                  <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{marginLeft:isMobile?0:"auto",display:"flex",gap:8,flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
                     <button style={s.btn("secondary")} onClick={printCycleSheet}>🖨 Print Sheet</button>
                     <button style={s.btn("secondary")} onClick={()=>setCcView("counting")}>← Back to Counting</button>
                     <button style={s.btn("secondary")} onClick={()=>{ setCcView("setup"); setCcItems([]); setCcSetupSel({}); }}>New Count</button>
